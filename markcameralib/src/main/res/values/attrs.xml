@@ -13,15 +13,15 @@
 -->
 <resources>
 
-    <declare-styleable name="RecordVideoView">
-        <attr name="facing" />
-        <attr name="aspectRatio" />
-        <attr name="autoFocus" />
-        <attr name="flash" />
-        <attr name="mode" format="enum">
-            <enum name="take_photo" value="1"/>
-            <enum name="take_record" value="2"/>
-            <enum name="take_all" value="3"/>
-        </attr>
-    </declare-styleable>
+    <!--<declare-styleable name="RecordVideoView">-->
+        <!--<attr name="facing" format="integer"/>-->
+        <!--<attr name="aspectRatio" format="string"/>-->
+        <!--<attr name="autoFocus" format="integer"/>-->
+        <!--<attr name="flash" format="integer"/>-->
+        <!--<attr name="mode" format="enum">-->
+            <!--<enum name="take_photo" value="1"/>-->
+            <!--<enum name="take_record" value="2"/>-->
+            <!--<enum name="take_all" value="3"/>-->
+        <!--</attr>-->
+    <!--</declare-styleable>-->
 </resources>

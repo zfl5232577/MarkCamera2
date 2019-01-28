@@ -4,6 +4,8 @@ import android.Manifest;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -106,6 +108,7 @@ public class RecordVideoView extends FrameLayout {
     private static Handler mBackgroundHandler;
     private boolean isBrowse;
     private boolean isCancelRecord = false;
+    private boolean isRecordSuccess = false;
 
     private int mMode;
     public static final int TAKE_PHOTO = 1;
@@ -157,10 +160,8 @@ public class RecordVideoView extends FrameLayout {
             }
         });
         // Attributes
-        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.RecycleListView, defStyleAttr,
-                R.style.Widget_RecordVideoView);
-        String aspectRatio = a.getString(R.styleable.RecordVideoView_aspectRatio);
-        a.recycle();
+//        TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.RecordVideoView, defStyleAttr, 0);
+//        a.recycle();
         initVideoView();
     }
 
@@ -200,7 +201,6 @@ public class RecordVideoView extends FrameLayout {
     }
 
     private void initVideoPlayView() {
-        mVideoPlayView.setVisibility(GONE);
         mVideoPlayView.setOnStateChangeListener(new VideoPlayView.OnStateChangeListener() {
             @Override
             public void onSurfaceTextureDestroyed(SurfaceTexture surface) {
@@ -215,7 +215,7 @@ public class RecordVideoView extends FrameLayout {
             @Override
             public void onPlaying() {
                 mGLSurfaceView.setVisibility(GONE);
-                mVideoPlayView.setVisibility(VISIBLE);
+                showPicturrLayout.setVisibility(GONE);
             }
 
             @Override
@@ -300,8 +300,8 @@ public class RecordVideoView extends FrameLayout {
         recorder.setRecordCallback(new RecordCallback() {
             @Override
             public void onComplete(final boolean validClip, final long clipDuration) {
-                Log.e(TAG, "onComplete: " );
-                if (isCancelRecord){
+                Log.e(TAG, "onComplete: ");
+                if (isCancelRecord) {
                     isCancelRecord = false;
                     return;
                 }
@@ -312,9 +312,7 @@ public class RecordVideoView extends FrameLayout {
                             if (clipManager.getPartCount() > 0) {
                                 //多段视频录制的话需要合成，单段不需要合成
                                 mRecordFilePath = clipManager.getVideoPathList().get(0);
-                                if (mVideoPlayView.getVisibility() == GONE) {
-                                    mVideoPlayView.setVisibility(VISIBLE);
-                                }
+                                mVideoPlayView.setVisibility(VISIBLE);
                                 mVideoPlayView.setDataSource(mRecordFilePath);
                             }
                         }
@@ -378,6 +376,16 @@ public class RecordVideoView extends FrameLayout {
 
             @Override
             public void onPictureBack(final Bitmap bitmap) {
+                if (isRecordSuccess){
+                    post(new Runnable() {
+                        @Override
+                        public void run() {
+                            showPicturrLayout.setVisibility(VISIBLE);
+                            ivShowPicture.setImageBitmap(bitmap);
+                        }
+                    });
+                    return;
+                }
                 if (rotation != 90 && bitmap != null) {
                     Matrix m = new Matrix();
                     m.setRotate((rotation - 90) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
@@ -503,7 +511,7 @@ public class RecordVideoView extends FrameLayout {
 
         @Override
         public void cancel() {
-            Log.e(TAG, "rencordFail: " );
+            Log.e(TAG, "cancel: ");
             isBrowse = false;
             showPicturrLayout.setVisibility(GONE);
             getBackgroundHandler().postAtFrontOfQueue(new Runnable() {
@@ -537,21 +545,24 @@ public class RecordVideoView extends FrameLayout {
 
         @Override
         public void record() {
+            isRecordSuccess = false;
             startRecord();
         }
 
         @Override
         public void rencordEnd() {
+            isRecordSuccess = true;
+            recorder.takePhoto(true);
             isBrowse = true;
             stopRecord();
         }
 
         @Override
         public void rencordFail() {
-            Log.e(TAG, "rencordFail: " );
+            Log.e(TAG, "rencordFail: ");
             //时间过短，录制失败，主动取消
             isCancelRecord = true;
-            if (recorder != null){
+            if (recorder != null) {
                 recorder.cancelRecording();
             }
             getBackgroundHandler().post(new Runnable() {
@@ -572,11 +583,11 @@ public class RecordVideoView extends FrameLayout {
 
         @Override
         public void deleteRecordResult() {
-            Log.e(TAG, "rencordFail: " );
+            Log.e(TAG, "deleteRecordResult: ");
             isBrowse = false;
             mGLSurfaceView.setVisibility(VISIBLE);
             mVideoPlayView.stop();
-            mVideoPlayView.setVisibility(INVISIBLE);
+            mVideoPlayView.setVisibility(GONE);
             if (recorder != null) {
                 recorder.startPreview();
             }
@@ -614,6 +625,7 @@ public class RecordVideoView extends FrameLayout {
             if (!file.exists()) {
                 file.mkdirs();
             }
+            Log.e(TAG, "startRecord: ");
             recorder.setOutputPath(mRecordFilePath);
             recorder.startRecording();
             //记录开始录制的时间

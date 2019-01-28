@@ -3,6 +3,8 @@ apply plugin: 'markaop-plugin'
 
 android {
     compileSdkVersion 26
+    aaptOptions.cruncherEnabled = false
+    aaptOptions.useNewCruncher = false
     defaultConfig {
         applicationId "com.mark.markcamera2"
         minSdkVersion 15
@@ -29,6 +31,6 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
-//    implementation project(':markcameralib')
-    implementation 'com.mark:markcamera-lib:1.0.0'
+    implementation project(':markcameralib')
+//    implementation 'com.mark:markcamera-lib:1.1.0'
 }
