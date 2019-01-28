@@ -21,6 +21,7 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -127,9 +128,9 @@ public class RecordVideoView extends FrameLayout {
     };
     private OrientationDetector orientationDetector;
     private int rotation;
-    private byte[] frameBytes;
-    private int frameWidth;
-    private int frameHeight;
+//    private byte[] frameBytes;
+//    private int frameWidth;
+//    private int frameHeight;
     private boolean isOpenFailed;
 
 
@@ -178,10 +179,40 @@ public class RecordVideoView extends FrameLayout {
 //        initFaceUnity(getContext());
     }
 
+    private float lastScaleFactor;
+    private float scaleFactor;
+
     /**
      * 初始化surfaceView
      */
     private void initSurfaceView() {
+        final ScaleGestureDetector scaleGestureDetector = new ScaleGestureDetector(getContext(), new ScaleGestureDetector.OnScaleGestureListener() {
+            @Override
+            public boolean onScale(ScaleGestureDetector detector) {
+                float factorOffset = detector.getScaleFactor() - lastScaleFactor;
+                scaleFactor += factorOffset;
+                lastScaleFactor = detector.getScaleFactor();
+                if (scaleFactor < 0) {
+                    scaleFactor = 0;
+                }
+                if (scaleFactor > 1) {
+                    scaleFactor = 1;
+                }
+                recorder.setZoom(scaleFactor);
+                return false;
+            }
+
+            @Override
+            public boolean onScaleBegin(ScaleGestureDetector detector) {
+                lastScaleFactor = detector.getScaleFactor();
+                return true;
+            }
+
+            @Override
+            public void onScaleEnd(ScaleGestureDetector detector) {
+
+            }
+        });
         final GestureDetector gestureDetector = new GestureDetector(getContext(),
                 new GestureDetector.SimpleOnGestureListener() {
                     @Override
@@ -195,7 +226,12 @@ public class RecordVideoView extends FrameLayout {
         mGLSurfaceView.setOnTouchListener(new OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                return gestureDetector.onTouchEvent(event);
+                if (event.getPointerCount() >= 2) {
+                    scaleGestureDetector.onTouchEvent(event);
+                } else if (event.getPointerCount() == 1) {
+                    gestureDetector.onTouchEvent(event);
+                }
+                return true;
             }
         });
     }
@@ -278,9 +314,9 @@ public class RecordVideoView extends FrameLayout {
             @Override
             public void onFrameBack(byte[] bytes, int width, int height, Camera.CameraInfo info) {
                 //原始数据回调 NV21,这里获取原始数据主要是为了faceUnity高级美颜使用
-                frameBytes = bytes;
-                frameWidth = width;
-                frameHeight = height;
+//                frameBytes = bytes;
+//                frameWidth = width;
+//                frameHeight = height;
             }
 
             @Override
@@ -474,7 +510,16 @@ public class RecordVideoView extends FrameLayout {
     }
 
     public void swapCamera() {
-
+        if (recorder != null) {
+            int cameraId = recorder.switchCamera();
+            for (com.aliyun.svideo.sdk.external.struct.recorder.CameraType type : com.aliyun.svideo.sdk
+                    .external.struct.recorder.CameraType
+                    .values()) {
+                if (type.getType() == cameraId) {
+                    cameraType = type;
+                }
+            }
+        }
     }
 
     public void setRecordVideoListener(RecordVideoListener recordVideoListener) {
@@ -601,7 +646,9 @@ public class RecordVideoView extends FrameLayout {
 
         @Override
         public void scale(float scaleValue) {
-
+            if (recorder!=null){
+                recorder.setZoom(scaleValue);
+            }
         }
     };
 

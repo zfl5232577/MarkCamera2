@@ -16,6 +16,8 @@ import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.Toast;
 
+import java.util.logging.Logger;
+
 public class CaptureButton extends View {
 
     public final String TAG = "CaptureButtom";
@@ -298,7 +300,7 @@ public class CaptureButton extends View {
                         ) {
                 }
                 if (mCaptureListener != null) {
-                    mCaptureListener.scale(key_down_Y - event.getY());
+                    mCaptureListener.scale((key_down_Y - event.getY())/getWidth());
                 }
                 break;
             case MotionEvent.ACTION_UP:
