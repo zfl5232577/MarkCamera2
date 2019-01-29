@@ -1,6 +1,10 @@
 package com.mark.markcameralib;
 
 import android.Manifest;
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.AnimatorSet;
+import android.animation.ObjectAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
@@ -35,10 +39,14 @@ import com.aliyun.recorder.supply.AliyunIRecorder;
 import com.aliyun.recorder.supply.EncoderInfoCallback;
 import com.aliyun.recorder.supply.RecordCallback;
 import com.aliyun.svideo.sdk.external.struct.common.VideoQuality;
+import com.aliyun.svideo.sdk.external.struct.effect.EffectBase;
+import com.aliyun.svideo.sdk.external.struct.effect.EffectImage;
+import com.aliyun.svideo.sdk.external.struct.effect.EffectText;
 import com.aliyun.svideo.sdk.external.struct.encoder.EncoderInfo;
 import com.aliyun.svideo.sdk.external.struct.encoder.VideoCodecs;
 import com.aliyun.svideo.sdk.external.struct.recorder.CameraParam;
 import com.aliyun.svideo.sdk.external.struct.recorder.CameraType;
+import com.aliyun.svideo.sdk.external.struct.recorder.FlashType;
 import com.aliyun.svideo.sdk.external.struct.recorder.MediaInfo;
 import com.aliyun.svideo.sdk.external.struct.snap.AliyunSnapVideoParam;
 import com.mark.markcameralib.common.utils.OrientationDetector;
@@ -72,6 +80,7 @@ public class RecordVideoView extends FrameLayout {
     private VideoPlayView mVideoPlayView;
     private FrameLayout showPicturrLayout;
     private ImageView ivShowPicture;
+    private View mFocusView;
     private CaptureButton mCaptureButton;
     private ImageView ivSwapCamera;
     private RecordVideoListener mRecordVideoListener;
@@ -101,7 +110,7 @@ public class RecordVideoView extends FrameLayout {
     //视频比例
     private int mRatioMode = AliyunSnapVideoParam.RATIO_MODE_9_16;
     //编码方式
-    private VideoCodecs mVideoCodec = VideoCodecs.H264_HARDWARE;
+    private VideoCodecs mVideoCodec = VideoCodecs.H264_SOFT_FFMPEG;
 
     //视频分辨率
     private int mResolutionMode = AliyunSnapVideoParam.RESOLUTION_720P;
@@ -128,7 +137,7 @@ public class RecordVideoView extends FrameLayout {
     };
     private OrientationDetector orientationDetector;
     private int rotation;
-//    private byte[] frameBytes;
+    //    private byte[] frameBytes;
 //    private int frameWidth;
 //    private int frameHeight;
     private boolean isOpenFailed;
@@ -149,6 +158,7 @@ public class RecordVideoView extends FrameLayout {
         FrameLayout.inflate(context, R.layout.layout_record_video_view, this);
         mGLSurfaceView = findViewById(R.id.glSurfaceView);
         mVideoPlayView = findViewById(R.id.videoPlayView);
+        mFocusView = findViewById(R.id.focus_view);
         mCaptureButton = findViewById(R.id.captureButton);
         ivShowPicture = findViewById(R.id.iv_ShowPicture);
         showPicturrLayout = findViewById(R.id.iv_ShowPictureLayout);
@@ -168,15 +178,9 @@ public class RecordVideoView extends FrameLayout {
 
     private void initVideoView() {
         //初始化surfaceView
-
         initSurfaceView();
         initVideoPlayView();
-//        initCountDownView();
-//        initBeautyParam();
         initRecorder();
-//        initRecordTimeView();
-//        copyAssets();
-//        initFaceUnity(getContext());
     }
 
     private float lastScaleFactor;
@@ -217,9 +221,30 @@ public class RecordVideoView extends FrameLayout {
                 new GestureDetector.SimpleOnGestureListener() {
                     @Override
                     public boolean onSingleTapUp(MotionEvent e) {
-                        float x = e.getX() / mGLSurfaceView.getWidth();
-                        float y = e.getY() / mGLSurfaceView.getHeight();
-                        recorder.setFocus(x, y);
+                        if (e.getY() < mGLSurfaceView.getWidth() * 3 / 2) {
+                            float x = e.getX() / mGLSurfaceView.getWidth();
+                            float y = e.getY() / mGLSurfaceView.getHeight();
+                            recorder.setFocus(x, y);
+                            setLayout(mFocusView, ((int) e.getX()), ((int) e.getY()));
+                            mFocusView.setVisibility(VISIBLE);
+                            ObjectAnimator scaleXAnimator = ObjectAnimator.ofFloat(mFocusView, "scaleX", 1.5f, 1f);
+                            ObjectAnimator scaleYAnimator = ObjectAnimator.ofFloat(mFocusView, "scaleY", 1.5f, 1f);
+                            AnimatorSet set = new AnimatorSet();
+                            set.addListener(new AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    postDelayed(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            mFocusView.setVisibility(GONE);
+                                        }
+                                    }, 150);
+                                }
+                            });
+                            set.play(scaleXAnimator).with(scaleYAnimator);
+                            set.setDuration(300);
+                            set.start();
+                        }
                         return true;
                     }
                 });
@@ -227,13 +252,24 @@ public class RecordVideoView extends FrameLayout {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getPointerCount() >= 2) {
-                    scaleGestureDetector.onTouchEvent(event);
+                    return scaleGestureDetector.onTouchEvent(event);
                 } else if (event.getPointerCount() == 1) {
-                    gestureDetector.onTouchEvent(event);
+                    return gestureDetector.onTouchEvent(event);
                 }
                 return true;
             }
         });
+    }
+
+    private void setLayout(View view, int x, int y) {
+
+        MarginLayoutParams margin = new MarginLayoutParams(view.getLayoutParams());
+
+        margin.setMargins(x - (view.getWidth() / 2), y - (view.getHeight() / 2), 0, 0);
+
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(margin);
+
+        view.setLayoutParams(layoutParams);
     }
 
     private void initVideoPlayView() {
@@ -309,7 +345,7 @@ public class RecordVideoView extends FrameLayout {
         recorder.setCamera(cameraType);
         recorder.setBeautyStatus(false);
         initOritationDetector();
-        recorder.setFocusMode(CameraParam.FOCUS_MODE_AUTO);
+        recorder.setFocusMode(CameraParam.FOCUS_MODE_CONTINUE);
         recorder.setOnFrameCallback(new OnFrameCallBack() {
             @Override
             public void onFrameBack(byte[] bytes, int width, int height, Camera.CameraInfo info) {
@@ -412,7 +448,7 @@ public class RecordVideoView extends FrameLayout {
 
             @Override
             public void onPictureBack(final Bitmap bitmap) {
-                if (isRecordSuccess){
+                if (isRecordSuccess) {
                     post(new Runnable() {
                         @Override
                         public void run() {
@@ -559,6 +595,7 @@ public class RecordVideoView extends FrameLayout {
             Log.e(TAG, "cancel: ");
             isBrowse = false;
             showPicturrLayout.setVisibility(GONE);
+            mVideoPlayView.setVisibility(GONE);
             getBackgroundHandler().postAtFrontOfQueue(new Runnable() {
                 @Override
                 public void run() {
@@ -632,6 +669,7 @@ public class RecordVideoView extends FrameLayout {
             isBrowse = false;
             mGLSurfaceView.setVisibility(VISIBLE);
             mVideoPlayView.stop();
+            showPicturrLayout.setVisibility(GONE);
             mVideoPlayView.setVisibility(GONE);
             if (recorder != null) {
                 recorder.startPreview();
@@ -646,7 +684,7 @@ public class RecordVideoView extends FrameLayout {
 
         @Override
         public void scale(float scaleValue) {
-            if (recorder!=null){
+            if (recorder != null) {
                 recorder.setZoom(scaleValue);
             }
         }
@@ -703,21 +741,14 @@ public class RecordVideoView extends FrameLayout {
     private void stopRecord() {
         if (recorder != null && !isStopToCompleteDuration) {//
             isStopToCompleteDuration = true;
-//            if (mControlView.getFlashType() == FlashType.ON
-//                    && mControlView.getCameraType() == CameraType.BACK) {
+//            if (recorder.switchLight() == FlashType.ON
+//                    && cameraType == CameraType.BACK) {
 //                recorder.setLight(com.aliyun.svideo.sdk.external.struct.recorder.FlashType.OFF);
 //            }
-//            //此处添加判断，progressBar弹出，也即当视频片段合成的时候，不调用stopRecording,
-//            //否则在finishRecording的时候调用stopRecording，会导致finishRecording阻塞
-//            //暂时规避，等待sdk解决该问题，取消该判断
-//            if ((progressBar == null || !progressBar.isShowing()) ) {
             recorder.stopRecording();
-//
-//            }
 //            if (effectMv != null && !TextUtils.isEmpty(effectMv.getPath())) {
 //                recorder.pauseMv();
 //            }
-
         }
     }
 
@@ -818,85 +849,31 @@ public class RecordVideoView extends FrameLayout {
     public @interface Mode {
     }
 
-    public void setFacing(int facing) {
+    public void setCameraType(CameraType cameraType) {
+        if (this.cameraType != cameraType) {
+            this.cameraType = cameraType;
+            if (recorder != null) {
+                recorder.setCamera(cameraType);
+            }
+        }
+    }
 
+    private CameraType getCameraType() {
+        return cameraType;
     }
 
     /**
-     * Gets the direction that the current camera faces.
+     * Sets the flash mode.
      *
-     * @return The camera facing.
+     * @param flash The desired flash mode.
      */
-    public int getFacing() {
-        //noinspection WrongConstant
-        return 0;
+    public void setFlash(FlashType flash) {
+        if (recorder == null || cameraType == CameraType.BACK) {
+            return;
+        }
+        recorder.setLight(flash);
     }
 
-
-//    public void setAspectRatio(@NonNull AspectRatio ratio) {
-//        mCameraView.setAspectRatio(ratio);
-//    }
-//
-//    /**
-//     * Gets the current aspect ratio of camera.
-//     *
-//     * @return The current {@link AspectRatio}. Can be {@code null} if no camera is opened yet.
-//     */
-//    @Nullable
-//    public AspectRatio getAspectRatio() {
-//        return mCameraView.getAspectRatio();
-//    }
-
-    /**
-     * Enables or disables the continuous auto-focus mode. When the current camera doesn't support
-     * auto-focus, calling this method will be ignored.
-     *
-     * @param autoFocus {@code true} to enable continuous auto-focus mode. {@code false} to
-     *                  disable it.
-     */
-    public void setAutoFocus(boolean autoFocus) {
-//        mCameraView.setAutoFocus(autoFocus);
-    }
-
-    /**
-     * Returns whether the continuous auto-focus mode is enabled.
-     *
-     * @return {@code true} if the continuous auto-focus mode is enabled. {@code false} if it is
-     * disabled, or if it is not supported by the current camera.
-     */
-//    public boolean getAutoFocus() {
-//        return mCameraView.getAutoFocus();
-//    }
-
-//    /**
-//     * Sets the flash mode.
-//     *
-//     * @param flash The desired flash mode.
-//     */
-//    public void setFlash(@CameraView.Flash int flash) {
-//        mCameraView.setFlash(flash);
-//    }
-
-
-//    private File createRecordDir() {
-//        File sampleDir = new File(mRecordFileDir);
-//        if (!sampleDir.exists()) {
-//            sampleDir.mkdirs();
-//        }
-//        // 创建文件
-//        File file;
-//        try {
-//            file = File.createTempFile("record", ".mp4", sampleDir);
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//            file = new File(mRecordFileDir, "record" + System.currentTimeMillis() + ".mp4");
-//            if (!file.exists()) {
-//                file.mkdirs();
-//            }
-//        }
-//        mRecordFilePath = file.getAbsolutePath();
-//        return file;
-//    }
     private File createPictureDir() {
         File sampleDir = new File(mRecordFileDir);
         if (!sampleDir.exists()) {
@@ -1009,7 +986,7 @@ public class RecordVideoView extends FrameLayout {
 
     private MediaInfo getMediaInfo() {
         MediaInfo info = new MediaInfo();
-        info.setFps(25);
+        info.setFps(30);
         info.setVideoWidth(getVideoWidth());
         info.setVideoHeight(getVideoHeight());
         info.setVideoCodec(mVideoCodec);
@@ -1063,6 +1040,20 @@ public class RecordVideoView extends FrameLayout {
                 break;
         }
         return height;
+    }
+
+    public void setBeautyStatus(boolean on) {
+        if (recorder != null) {
+            recorder.setBeautyStatus(on);
+        }
+    }
+    public void setBeautyLevel(int level) {
+        if (level<1 || level>5){
+            throw new RuntimeException("BeautyLevel must 1<=level<=5,you level = "+level);
+        }
+        if (recorder != null) {
+            recorder.setBeautyLevel(level);
+        }
     }
 
     public interface RecordVideoListener {

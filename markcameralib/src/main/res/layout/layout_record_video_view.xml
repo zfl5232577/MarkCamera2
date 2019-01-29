@@ -42,6 +42,13 @@
         android:layout_marginEnd="15dp"
         android:layout_alignParentEnd="true" />
 
+    <View
+        android:id="@+id/focus_view"
+        android:visibility="gone"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/camera_focus_view"/>
+
     <com.mark.markcameralib.CaptureButton
         android:id="@+id/captureButton"
         android:layout_width="wrap_content"
