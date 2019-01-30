@@ -63,6 +63,7 @@ public class CaptureButton extends View {
     private RecordRunnable recordRunnable = new RecordRunnable();
     private ValueAnimator record_anim = ValueAnimator.ofFloat(0, 360);
     private CaptureListener mCaptureListener;
+    private int mMaxRecordTime = 10;
 
     @RecordVideoView.Mode
     private int mMode;
@@ -409,9 +410,16 @@ public class CaptureButton extends View {
                 }
             });
             record_anim.setInterpolator(new LinearInterpolator());
-            record_anim.setDuration(10000);
+            record_anim.setDuration(mMaxRecordTime*1000);
             record_anim.start();
         }
+    }
+
+    public void setMaxRecordTime(int maxRecordTime) {
+        if (maxRecordTime<3){
+            throw new RuntimeException("maxRecordTime must >= 3 , your  maxRecordTime = maxRecordTime");
+        }
+        mMaxRecordTime = maxRecordTime;
     }
 
     private void startAnimation(float outside_start, float outside_end, float inside_start, float inside_end) {

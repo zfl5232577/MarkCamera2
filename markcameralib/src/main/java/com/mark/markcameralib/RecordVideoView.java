@@ -91,8 +91,6 @@ public class RecordVideoView extends FrameLayout {
 
     //最小录制时长
     private static final int MIN_RECORD_TIME = 1;
-    //最大录制时长
-    private static final int MAX_RECORD_TIME = 10;
     //录制视频是否达到最大值
     private boolean isMaxDuration = false;
     private long startRecordingTime;
@@ -902,6 +900,14 @@ public class RecordVideoView extends FrameLayout {
             }
             mHookHandler = null;
         }
+    }
+
+    /**
+     * 最长录制时间，单位为秒
+     * @param maxRecordTime
+     */
+    public void setMaxRecordTime(int maxRecordTime){
+        mCaptureButton.setMaxRecordTime(maxRecordTime);
     }
 
     @Mode
