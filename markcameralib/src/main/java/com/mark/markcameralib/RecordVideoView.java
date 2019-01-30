@@ -982,6 +982,18 @@ public class RecordVideoView extends FrameLayout {
         }
     }
 
+
+    /**
+     * 设置静音
+     *
+     * @param mute
+     */
+    public void setMute(boolean mute) {
+        if (recorder != null) {
+            recorder.setMute(mute);
+        }
+    }
+
     /**
      * 设置视频质量
      *
