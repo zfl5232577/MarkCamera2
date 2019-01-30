@@ -19,7 +19,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-
 }
 
 dependencies {
@@ -41,7 +40,7 @@ uploadArchives{
             repository(url:uri('C:/Users/Mark/Desktop/maven-snapshots'))
             pom.groupId = 'com.mark' // 组名
             pom.artifactId = 'markcamera-lib' // 插件名
-            pom.version = '1.1.0' // 版本号
+            pom.version = '1.2.3' // 版本号
         }
     }
 }

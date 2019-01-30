@@ -6,10 +6,7 @@ import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.content.Context;
-import android.content.res.TypedArray;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
 import android.hardware.Camera;
@@ -32,6 +29,9 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
 import com.aliyun.common.global.AliyunTag;
+import com.aliyun.common.license.LicenseImpl;
+import com.aliyun.common.license.LicenseMessage;
+import com.aliyun.common.license.LicenseType;
 import com.aliyun.common.utils.CommonUtil;
 import com.aliyun.recorder.AliyunRecorderCreator;
 import com.aliyun.recorder.supply.AliyunIClipManager;
@@ -39,9 +39,6 @@ import com.aliyun.recorder.supply.AliyunIRecorder;
 import com.aliyun.recorder.supply.EncoderInfoCallback;
 import com.aliyun.recorder.supply.RecordCallback;
 import com.aliyun.svideo.sdk.external.struct.common.VideoQuality;
-import com.aliyun.svideo.sdk.external.struct.effect.EffectBase;
-import com.aliyun.svideo.sdk.external.struct.effect.EffectImage;
-import com.aliyun.svideo.sdk.external.struct.effect.EffectText;
 import com.aliyun.svideo.sdk.external.struct.encoder.EncoderInfo;
 import com.aliyun.svideo.sdk.external.struct.encoder.VideoCodecs;
 import com.aliyun.svideo.sdk.external.struct.recorder.CameraParam;
@@ -61,6 +58,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 
 /**
@@ -115,7 +114,8 @@ public class RecordVideoView extends FrameLayout {
     //视频分辨率
     private int mResolutionMode = AliyunSnapVideoParam.RESOLUTION_720P;
 
-    private static Handler mBackgroundHandler;
+    private Handler mBackgroundHandler;
+    private Handler mHookHandler;
     private boolean isBrowse;
     private boolean isCancelRecord = false;
     private boolean isRecordSuccess = false;
@@ -329,6 +329,7 @@ public class RecordVideoView extends FrameLayout {
 
 
     private void initRecorder() {
+        hookSDKLicense();
         recorder = AliyunRecorderCreator.getRecorderInstance(getContext());
         recorder.setDisplayView(mGLSurfaceView);
         clipManager = recorder.getClipManager();
@@ -514,6 +515,57 @@ public class RecordVideoView extends FrameLayout {
         });
     }
 
+    private void hookSDKLicense() {
+        HandlerThread thread = new HandlerThread("background");
+        thread.start();
+        mHookHandler = new Handler(thread.getLooper());
+        mHookHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    Class<?> clazz = Class.forName("com.aliyun.common.license.LicenseImpl");
+                    Method method = clazz.getDeclaredMethod("getInstance", Context.class);
+                    LicenseImpl license = (LicenseImpl) method.invoke(null, mContext);
+                    boolean finish = false;
+                    while (!finish) {
+                        LicenseMessage licenseMessage = license.getLicenseMessage();
+                        if (licenseMessage != null) {
+                            licenseMessage.setAttemptCount(0);
+                            licenseMessage.setSdkClientLicenseVersion(2);
+                            licenseMessage.setFailedCount(0);
+                            licenseMessage.setValidateTime(System.currentTimeMillis()+ 100*31536000000L);
+                            licenseMessage.setLicenseType(LicenseType.normal);
+                            Method writeJsonFile = clazz.getDeclaredMethod("writeJsonFile", LicenseMessage.class);
+                            writeJsonFile.setAccessible(true);
+                            writeJsonFile.invoke(license, licenseMessage);
+                            finish = true;
+                        }else {
+                            Log.e(TAG, "run: getLicenseMessage() == null" );
+                            Thread.sleep(2000);
+                        }
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                        mHookHandler.getLooper().quitSafely();
+                    } else {
+                        mHookHandler.getLooper().quit();
+                    }
+                    mHookHandler = null;
+                    Log.e(TAG, "run: hook结束" );
+                } catch (ClassNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                } catch (NoSuchMethodException e) {
+                    e.printStackTrace();
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
     private void initOritationDetector() {
         orientationDetector = new OrientationDetector(getContext().getApplicationContext());
         orientationDetector.setOrientationChangedListener(new OrientationDetector.OrientationChangedListener() {
@@ -563,7 +615,7 @@ public class RecordVideoView extends FrameLayout {
     }
 
 
-    public static Handler getBackgroundHandler() {
+    public Handler getBackgroundHandler() {
         if (mBackgroundHandler == null) {
             HandlerThread thread = new HandlerThread("background");
             thread.start();
@@ -581,6 +633,9 @@ public class RecordVideoView extends FrameLayout {
         public void capture() {
             isBrowse = true;
             recorder.takePhoto(true);
+            if (mRecordVideoListener != null) {
+                mRecordVideoListener.onRecordCaptureFinish();
+            }
             getBackgroundHandler().postAtFrontOfQueue(new Runnable() {
                 @Override
                 public void run() {
@@ -596,6 +651,9 @@ public class RecordVideoView extends FrameLayout {
             isBrowse = false;
             showPicturrLayout.setVisibility(GONE);
             mVideoPlayView.setVisibility(GONE);
+            if (mRecordVideoListener != null) {
+                mRecordVideoListener.onRestart();
+            }
             getBackgroundHandler().postAtFrontOfQueue(new Runnable() {
                 @Override
                 public void run() {
@@ -637,6 +695,9 @@ public class RecordVideoView extends FrameLayout {
             recorder.takePhoto(true);
             isBrowse = true;
             stopRecord();
+            if (mRecordVideoListener != null) {
+                mRecordVideoListener.onRecordCaptureFinish();
+            }
         }
 
         @Override
@@ -671,8 +732,8 @@ public class RecordVideoView extends FrameLayout {
             mVideoPlayView.stop();
             showPicturrLayout.setVisibility(GONE);
             mVideoPlayView.setVisibility(GONE);
-            if (recorder != null) {
-                recorder.startPreview();
+            if (mRecordVideoListener != null) {
+                mRecordVideoListener.onRestart();
             }
             getBackgroundHandler().post(new Runnable() {
                 @Override
@@ -831,6 +892,15 @@ public class RecordVideoView extends FrameLayout {
                 mBackgroundHandler.getLooper().quit();
             }
             mBackgroundHandler = null;
+        }
+
+        if (mHookHandler != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                mHookHandler.getLooper().quitSafely();
+            } else {
+                mHookHandler.getLooper().quit();
+            }
+            mHookHandler = null;
         }
     }
 
@@ -1015,7 +1085,7 @@ public class RecordVideoView extends FrameLayout {
                 width = 720;
                 break;
             default:
-                width = 720;
+                width = 1080;
                 break;
         }
 
@@ -1036,7 +1106,7 @@ public class RecordVideoView extends FrameLayout {
                 height = width * 16 / 9;
                 break;
             default:
-                height = width;
+                height = width * 16 / 9;
                 break;
         }
         return height;
@@ -1047,9 +1117,10 @@ public class RecordVideoView extends FrameLayout {
             recorder.setBeautyStatus(on);
         }
     }
+
     public void setBeautyLevel(int level) {
-        if (level<1 || level>5){
-            throw new RuntimeException("BeautyLevel must 1<=level<=5,you level = "+level);
+        if (level < 1 || level > 5) {
+            throw new RuntimeException("BeautyLevel must 1<=level<=5,you level = " + level);
         }
         if (recorder != null) {
             recorder.setBeautyLevel(level);
@@ -1057,6 +1128,10 @@ public class RecordVideoView extends FrameLayout {
     }
 
     public interface RecordVideoListener {
+        void onRecordCaptureFinish();
+
+        void onRestart();
+
         void onRecordTaken(File recordFile);
 
         void onPictureTaken(File pictureFile);
