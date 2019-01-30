@@ -2,8 +2,9 @@
 界面完全模仿微信朋友圈录制视频界面，用户可以自行在界面覆盖更多操作控件，例如：闪光灯，静音拍摄等。
 
 ### 集成方式
+    目前lastversion;1.2.3,历史版本见release
     dependencies {
-      implementation 'com.mark:markpush-lib:lastversion'
+      implementation 'com.mark:markcamera-lib:lastversion'
     }
 
 
