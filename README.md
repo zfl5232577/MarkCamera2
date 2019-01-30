@@ -14,6 +14,7 @@
     -dontwarn com.duanqu.**
     -dontwarn com.qu.**
     -dontwarn component.alive.com.facearengine.**
+    -dontwarn com.alivc.component.encoder.**
     -keepattributes *Annotation*
 
     -keep class com.aliyun.** {*;}
@@ -21,6 +22,7 @@
     -keep class com.duanqu.** {*;}
     -keep class com.qu.** {*;}
     -keep class component.alive.com.facearengine.** {*;}
+    -keep class com.alivc.component.encoder.** {*;}
 
     -keep public class **.R$*{
        public static final int *;
