@@ -38,9 +38,9 @@ uploadArchives{
     repositories{
         mavenDeployer{
             repository(url:uri('C:/Users/Mark/Desktop/maven-snapshots'))
-            pom.groupId = 'com.mark' // 组名
-            pom.artifactId = 'markcamera-lib' // 插件名
-            pom.version = '1.2.3' // 版本号
+            pom.groupId =  GROUP// 组名
+            pom.artifactId = POM_ARTIFACT_ID // 插件名
+            pom.version = VERSION_NAME // 版本号
         }
     }
 }

@@ -4,7 +4,7 @@
 ### 集成方式
     目前lastversion;1.2.3,历史版本见release
     dependencies {
-      implementation 'com.mark:markcamera-lib:lastversion'
+      implementation 'com.mark:markcamera:lastversion'
     }
 
 
