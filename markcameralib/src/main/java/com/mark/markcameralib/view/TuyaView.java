@@ -54,8 +54,11 @@ public class TuyaView extends View {
 
         Paint paint = new Paint();
         paint.setAntiAlias(true);
+        paint.setDither(true);
         paint.setStrokeWidth(getResources().getDimension(R.dimen.dp3));
         paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        paint.setStrokeCap(Paint.Cap.ROUND);
         paint.setColor(color);
 
         return paint;
@@ -183,8 +186,7 @@ public class TuyaView extends View {
         //两点之间的距离大于等于3时，连接连接两点形成直线
         if (dx >= 3 || dy >= 3) {
             //两点连成直线
-            mPath.lineTo(x, y);
-
+            mPath.quadTo(mX, mY, (x + mX) / 2.0F, (y + mY) / 2.0F);
             //第二次执行时，第一次结束调用的坐标值将作为第二次调用的初始坐标值
             mX = x;
             mY = y;

@@ -377,11 +377,12 @@ public class CaptureButton extends View {
                 if (event.getY() > btn_center_Y - btn_outside_radius &&
                         event.getY() < btn_center_Y + btn_outside_radius &&
                         event.getX() > btn_center_X - btn_outside_radius &&
-                        event.getX() < btn_center_X + btn_outside_radius
+                        event.getX() < btn_center_X + btn_outside_radius &&
+                        key_down_Y-event.getY() > btn_outside_radius
                         ) {
                 }
                 if (mCaptureListener != null) {
-                    mCaptureListener.scale((key_down_Y - event.getY()) / getWidth());
+                    mCaptureListener.scale((key_down_Y - event.getY()-btn_outside_radius) / getWidth());
                 }
                 break;
             case MotionEvent.ACTION_UP:

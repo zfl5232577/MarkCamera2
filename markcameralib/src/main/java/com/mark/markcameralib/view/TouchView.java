@@ -201,6 +201,8 @@ public class TouchView extends View {
                     float slideY = moveY - downY + getY();
                     setX(slideX);
                     setY(slideY);
+                    coreX = getWidth()/2+slideX;//view的中心点坐标
+                    coreY = getHeight()/2+slideY;
                     downX = moveX;
                     downY = moveY;
                 }
