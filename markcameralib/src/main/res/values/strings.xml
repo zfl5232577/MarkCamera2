@@ -8,4 +8,7 @@
     <string name="no_read_external_storage_permission">External storage is not permitted to read, please open first</string>
 
     <string name="aliyun_no_free_memory">SDCard no free memory</string>
+
+    <string name="text_cancel">Cancel</string>
+    <string name="text_complete">Complete</string>
 </resources>

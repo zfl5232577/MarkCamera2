@@ -25,5 +25,5 @@ interface Constants {
 
     String TEMP_PATH = Environment.getExternalStorageDirectory()
             + File.separator
-            + "tmp";
+            + "MarkCamera2";
 }

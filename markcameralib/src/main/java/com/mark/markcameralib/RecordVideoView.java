@@ -101,7 +101,7 @@ public class RecordVideoView extends FrameLayout {
     //录制码率
     private int mBitrate = 0;
     //关键帧间隔
-    private int mGop = 5;
+    private int mGop = 10;
     //视频质量
     private VideoQuality mVideoQuality = VideoQuality.HD;
     //视频比例
@@ -140,7 +140,6 @@ public class RecordVideoView extends FrameLayout {
 //    private int frameHeight;
     private boolean isOpenFailed;
 
-
     public RecordVideoView(@NonNull Context context) {
         this(context, null);
     }
@@ -153,7 +152,7 @@ public class RecordVideoView extends FrameLayout {
         super(context, attrs, defStyleAttr);
         mContext = context;
         // 初始化各项组件
-        FrameLayout.inflate(context, R.layout.layout_record_video_view, this);
+        FrameLayout.inflate(context, R.layout.markcamera_layout_record_video_view, this);
         mGLSurfaceView = findViewById(R.id.glSurfaceView);
         mVideoPlayView = findViewById(R.id.videoPlayView);
         mFocusView = findViewById(R.id.focus_view);
@@ -385,6 +384,7 @@ public class RecordVideoView extends FrameLayout {
                                 mRecordFilePath = clipManager.getVideoPathList().get(0);
                                 mVideoPlayView.setVisibility(VISIBLE);
                                 mVideoPlayView.setDataSource(mRecordFilePath);
+                                mCaptureButton.setWriteFileFinish(true);
                             }
                         }
 
@@ -479,6 +479,7 @@ public class RecordVideoView extends FrameLayout {
                         }
                     });
                 }
+                mCaptureButton.setWriteFileFinish(true);
                 Log.e(TAG, "onPictureBack: ");
             }
 
@@ -523,22 +524,33 @@ public class RecordVideoView extends FrameLayout {
                 try {
                     Class<?> clazz = Class.forName("com.aliyun.common.license.LicenseImpl");
                     Method method = clazz.getDeclaredMethod("getInstance", Context.class);
-                    LicenseImpl license = (LicenseImpl) method.invoke(null, mContext);
+                    final LicenseImpl license = (LicenseImpl) method.invoke(null, mContext);
                     boolean finish = false;
                     while (!finish) {
-                        LicenseMessage licenseMessage = license.getLicenseMessage();
+                        final LicenseMessage licenseMessage = license.getLicenseMessage();
                         if (licenseMessage != null) {
                             licenseMessage.setAttemptCount(0);
                             licenseMessage.setSdkClientLicenseVersion(2);
                             licenseMessage.setFailedCount(0);
-                            licenseMessage.setValidateTime(System.currentTimeMillis()+ 100*31536000000L);
+                            licenseMessage.setValidateTime(System.currentTimeMillis() + 100 * 31536000000L);
                             licenseMessage.setLicenseType(LicenseType.normal);
-                            Method writeJsonFile = clazz.getDeclaredMethod("writeJsonFile", LicenseMessage.class);
+                            final Method writeJsonFile = clazz.getDeclaredMethod("writeJsonFile", LicenseMessage.class);
                             writeJsonFile.setAccessible(true);
-                            writeJsonFile.invoke(license, licenseMessage);
+                            post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        writeJsonFile.invoke(license, licenseMessage);
+                                    } catch (IllegalAccessException e) {
+                                        e.printStackTrace();
+                                    } catch (InvocationTargetException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
                             finish = true;
-                        }else {
-                            Log.e(TAG, "run: getLicenseMessage() == null" );
+                        } else {
+                            Log.e(TAG, "run: getLicenseMessage() == null");
                             Thread.sleep(2000);
                         }
                     }
@@ -548,7 +560,7 @@ public class RecordVideoView extends FrameLayout {
                         mHookHandler.getLooper().quit();
                     }
                     mHookHandler = null;
-                    Log.e(TAG, "run: hook结束" );
+                    Log.e(TAG, "run: hook结束");
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 } catch (IllegalAccessException e) {
@@ -615,7 +627,7 @@ public class RecordVideoView extends FrameLayout {
 
     public Handler getBackgroundHandler() {
         if (mBackgroundHandler == null) {
-            HandlerThread thread = new HandlerThread("background");
+            HandlerThread thread = new HandlerThread("record");
             thread.start();
             mBackgroundHandler = new Handler(thread.getLooper());
         }
@@ -670,7 +682,7 @@ public class RecordVideoView extends FrameLayout {
         @Override
         public void determine() {
             if (mRecordVideoListener != null && !TextUtils.isEmpty(mPictureFilePath)) {
-                mRecordVideoListener.onPictureTaken(new File(mPictureFilePath));
+                mRecordVideoListener.onPictureTaken(mPictureFilePath);
             }
         }
 
@@ -718,7 +730,7 @@ public class RecordVideoView extends FrameLayout {
         @Override
         public void getRecordResult() {
             if (mRecordVideoListener != null) {
-                mRecordVideoListener.onRecordTaken(new File(mRecordFilePath));
+                mRecordVideoListener.onRecordTaken(mRecordFilePath);
             }
         }
 
@@ -745,6 +757,20 @@ public class RecordVideoView extends FrameLayout {
         public void scale(float scaleValue) {
             if (recorder != null) {
                 recorder.setZoom(scaleValue);
+            }
+        }
+
+        @Override
+        public void editVideo() {
+            if (mRecordVideoListener != null) {
+                mRecordVideoListener.onEditRecord(mRecordFilePath);
+            }
+        }
+
+        @Override
+        public void editPicture() {
+            if (mRecordVideoListener != null && !TextUtils.isEmpty(mPictureFilePath)) {
+                mRecordVideoListener.onEditPicture(mPictureFilePath);
             }
         }
     };
@@ -904,10 +930,18 @@ public class RecordVideoView extends FrameLayout {
 
     /**
      * 最长录制时间，单位为秒
+     *
      * @param maxRecordTime
      */
-    public void setMaxRecordTime(int maxRecordTime){
+    public void setMaxRecordTime(int maxRecordTime) {
         mCaptureButton.setMaxRecordTime(maxRecordTime);
+    }
+
+    public void setRecordFileDir(String recordFileDir) {
+        if (TextUtils.isEmpty(recordFileDir)) {
+            throw new RuntimeException("setRecordFileDir(String recordFileDir) recordFileDir is null!");
+        }
+        mRecordFileDir = recordFileDir;
     }
 
     @Mode
@@ -1072,6 +1106,16 @@ public class RecordVideoView extends FrameLayout {
         }
     }
 
+
+    /**
+     * 拍摄完成后是否需要编辑
+     *
+     * @param need
+     */
+    public void needEditButton(boolean need) {
+        mCaptureButton.setEnableEdit(need);
+    }
+
     private MediaInfo getMediaInfo() {
         MediaInfo info = new MediaInfo();
         info.setFps(30);
@@ -1150,9 +1194,13 @@ public class RecordVideoView extends FrameLayout {
 
         void onRestart();
 
-        void onRecordTaken(File recordFile);
+        void onRecordTaken(String recordFilePath);
 
-        void onPictureTaken(File pictureFile);
+        void onPictureTaken(String pictureFilePath);
+
+        void onEditPicture(String pictureFilePath);
+
+        void onEditRecord(String recordFilePath);
 
         void quit();
     }

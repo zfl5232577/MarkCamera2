@@ -1,0 +1,830 @@
+package com.mark.markcameralib;
+
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.BitmapDrawable;
+import android.media.MediaMetadataRetriever;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.view.ViewCompat;
+import android.support.v7.app.AlertDialog;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
+
+import com.aliyun.common.global.AliyunTag;
+import com.aliyun.crop.AliyunCropCreator;
+import com.aliyun.crop.struct.CropParam;
+import com.aliyun.crop.supply.AliyunICrop;
+import com.aliyun.qupai.editor.AliyunIComposeCallBack;
+import com.aliyun.qupai.editor.AliyunIEditor;
+import com.aliyun.qupai.editor.impl.AliyunEditorFactory;
+import com.aliyun.qupai.import_core.AliyunIImport;
+import com.aliyun.qupai.import_core.AliyunImportCreator;
+import com.aliyun.svideo.sdk.external.struct.AliyunIClipConstructor;
+import com.aliyun.svideo.sdk.external.struct.common.AliyunDisplayMode;
+import com.aliyun.svideo.sdk.external.struct.common.AliyunVideoParam;
+import com.aliyun.svideo.sdk.external.struct.common.VideoDisplayMode;
+import com.aliyun.svideo.sdk.external.struct.common.VideoQuality;
+import com.aliyun.svideo.sdk.external.struct.encoder.VideoCodecs;
+import com.aliyun.vod.common.utils.DensityUtil;
+import com.mark.markcameralib.common.sdk.SampleEditorCallBack;
+import com.mark.markcameralib.view.SoftKeyBoardListener;
+import com.mark.markcameralib.view.TouchView;
+import com.mark.markcameralib.view.TuyaView;
+import com.mark.markcameralib.view.VideoPlayView;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+
+/**
+ * <pre>
+ *     author : Mark
+ *     e-mail : makun.cai@aorise.org
+ *     time   : 2019/01/30
+ *     desc   : 视频编辑控件，涂鸦，添加表情，文字，视频裁剪
+ *     version: 1.0
+ * </pre>
+ */
+public class EditVideoView extends FrameLayout {
+
+    private static final String TAG = EditVideoView.class.getSimpleName();
+    private int[] drawableBg = new int[]{R.drawable.color1, R.drawable.color2, R.drawable.color3, R.drawable.color4, R.drawable.color5};
+    private int[] colors = new int[]{R.color.color1, R.color.color2, R.color.color3, R.color.color4, R.color.color5};
+    private int[] expressions = new int[]{R.mipmap.expression1, R.mipmap.expression2, R.mipmap.expression3, R.mipmap.expression4,
+            R.mipmap.expression5, R.mipmap.expression6, R.mipmap.expression7, R.mipmap.expression8};
+
+    private VideoPlayView mVideoPlayView;
+    private LinearLayout llTuYAColor;
+    private View v_line;
+    private LinearLayout ll_text_color;
+    private RelativeLayout rl_touch_view;
+    private RelativeLayout rl_edit_text;
+    private EditText et_tag;
+    private TextView tv_tag;
+    private TextView tv_hint_delete;
+    private RelativeLayout rl_tuya;
+    private TuyaView tuyaView;
+    private RelativeLayout layout_control;
+    private TextView tv_cancel_edit;
+    private TextView tv_complete_edit;
+    private ImageView iv_tuya;
+    private ImageView iv_biaoqing;
+    private ImageView iv_wenzi;
+    private ImageView iv_shear;
+    private ImageView iv_clip;
+    private RelativeLayout rl_back;
+    private RelativeLayout rl_expression;
+    private TextView tv_cancel_text_edit;
+    private TextView tv_complete_text_dit;
+    private RelativeLayout rl_text_color_or_bg_color;
+    private ImageView iv_text_color_or_bg_color;
+    private int currentColorPosition;
+    private int currentTextColorPosition;
+    private int currentTextBgColorPosition = -1;
+    private LinearLayout layout_control_tab;
+
+    private EditVideoViewCallback mCallback;
+
+    private String videoUrl;
+    private String outFileDir = Constants.TEMP_PATH;
+    private boolean isTextColor = true;
+    private boolean isFirstShowEditText;
+    private InputMethodManager manager;
+    private AliyunICrop mAliyunCrop;
+    private AliyunIEditor mAliyunEditor;
+    private CropParam mCropParam;
+    private AliyunIClipConstructor mAliyunIClipConstructor;
+    private AliyunVideoParam mVideoParam;
+
+    private Handler mBackgroundHandler;
+    private AlertDialog progressDialog;
+    private TextView progressTextView;
+
+    public void showProgressDialog(String dialogText) {
+
+        if (progressDialog == null) {
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
+            builder.setCancelable(false);
+            View view = View.inflate(getContext(), R.layout.markcamera_dialog_loading, null);
+            builder.setView(view);
+            ProgressBar pb_loading = view.findViewById(R.id.pb_loading);
+            progressTextView = view.findViewById(R.id.tv_hint);
+            progressTextView.setText(dialogText);
+            progressDialog = builder.create();
+        } else {
+            progressTextView.setText(dialogText);
+        }
+        progressDialog.show();
+    }
+
+    public void closeProgressDialog() {
+        try {
+            if (progressDialog != null) {
+                progressDialog.cancel();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public Handler getBackgroundHandler() {
+        if (mBackgroundHandler == null) {
+            HandlerThread thread = new HandlerThread("edit_video");
+            thread.start();
+            mBackgroundHandler = new Handler(thread.getLooper());
+        }
+        return mBackgroundHandler;
+    }
+
+    public EditVideoView(@NonNull Context context) {
+        this(context, null);
+    }
+
+    public EditVideoView(@NonNull Context context, @Nullable AttributeSet attrs) {
+        this(context, attrs, 0);
+    }
+
+    public EditVideoView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+        init(context);
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        initExpression();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        Log.e(TAG, "onDetachedFromWindow:------------------------> ");
+        if (mAliyunCrop != null) {
+            mAliyunCrop.dispose();
+            mAliyunCrop = null;
+        }
+        if (mAliyunEditor != null) {
+            mAliyunEditor.onDestroy();
+            mAliyunEditor = null;
+        }
+
+        if (mBackgroundHandler != null) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                mBackgroundHandler.getLooper().quitSafely();
+            } else {
+                mBackgroundHandler.getLooper().quit();
+            }
+            mBackgroundHandler = null;
+        }
+    }
+
+    private void init(Context context) {
+        initView(context);
+        initEvent();
+        initColors();
+        initManager(context);
+        initAliyunICrop(context);
+    }
+
+    private void initAliyunICrop(Context context) {
+        mAliyunCrop = AliyunCropCreator.createCropInstance(context);
+        mVideoParam = new AliyunVideoParam.Builder()
+                .gop(10)
+                .frameRate(25)
+                .videoQuality(VideoQuality.HD)
+                .videoCodec(VideoCodecs.H264_SOFT_FFMPEG)
+                .scaleMode(VideoDisplayMode.SCALE)
+                .build();
+    }
+
+    private void initManager(Context context) {
+        ((Activity) context).getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN | WindowManager.LayoutParams.SOFT_INPUT_STATE_HIDDEN);
+        manager = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
+        SoftKeyBoardListener listener = new SoftKeyBoardListener((Activity) context);
+        listener.setOnSoftKeyBoardChangeListener(new SoftKeyBoardListener.OnSoftKeyBoardChangeListener() {
+            @Override
+            public void keyBoardShow(int height) {
+                Log.e(TAG, "keyBoardShow: " + height);
+                ll_text_color.setTranslationY(-height);
+            }
+
+            @Override
+            public void keyBoardHide(int height) {
+                Log.e(TAG, "keyBoardHide: " + height);
+                ll_text_color.setTranslationY(0);
+            }
+        });
+    }
+
+    private void initView(Context context) {
+        FrameLayout.inflate(context, R.layout.markcamera_layout_edit_video_view, this);
+        mVideoPlayView = findViewById(R.id.videoPlayView);
+        rl_tuya = findViewById(R.id.rl_tuya);
+        tuyaView = findViewById(R.id.tuyaView);
+        rl_touch_view = findViewById(R.id.rl_touch_view);
+        layout_control = findViewById(R.id.layout_control);
+        tv_cancel_edit = findViewById(R.id.tv_cancel_edit);
+        tv_complete_edit = findViewById(R.id.tv_complete_edit);
+        iv_tuya = findViewById(R.id.iv_tuya);
+        iv_biaoqing = findViewById(R.id.iv_biaoqing);
+        iv_wenzi = findViewById(R.id.iv_wenzi);
+        iv_shear = findViewById(R.id.iv_shear);
+        iv_clip = findViewById(R.id.iv_clip);
+        llTuYAColor = findViewById(R.id.llTuYAColor);
+        rl_back = findViewById(R.id.rl_back);
+        rl_expression = findViewById(R.id.rl_expression);
+        rl_edit_text = findViewById(R.id.rl_edit_text);
+        tv_cancel_text_edit = findViewById(R.id.tv_cancel_text_edit);
+        tv_complete_text_dit = findViewById(R.id.tv_complete_text_dit);
+        et_tag = findViewById(R.id.et_tag);
+        tv_tag = findViewById(R.id.tv_tag);
+        ll_text_color = findViewById(R.id.ll_text_color);
+        rl_text_color_or_bg_color = findViewById(R.id.rl_text_color_or_bg_color);
+        iv_text_color_or_bg_color = findViewById(R.id.iv_text_color_or_bg_color);
+        tv_hint_delete = findViewById(R.id.tv_hint_delete);
+        v_line = findViewById(R.id.v_line);
+        layout_control_tab = findViewById(R.id.layout_control_tab);
+    }
+
+    private void initEvent() {
+
+        iv_tuya.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeTuYaState(!(llTuYAColor.getVisibility() == View.VISIBLE));
+            }
+        });
+
+        iv_biaoqing.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeTuYaState(false);
+                rl_expression.setVisibility(VISIBLE);
+                rl_expression.setFocusable(true);
+                rl_expression.setFocusableInTouchMode(true);
+                rl_expression.requestFocus();
+            }
+        });
+        iv_wenzi.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeTuYaState(false);
+                changeTextState(!rl_edit_text.isShown());
+            }
+        });
+
+        rl_back.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                tuyaView.backPath();
+            }
+        });
+
+        tv_cancel_text_edit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeTextState(!rl_edit_text.isShown());
+            }
+        });
+
+        et_tag.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                tv_tag.setText(s);
+            }
+        });
+
+        tv_complete_text_dit.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                tv_tag.setTextColor(getResources().getColor(colors[currentTextColorPosition]));
+                if (currentTextBgColorPosition != -1) {
+                    tv_tag.setBackgroundColor(getResources().getColor(colors[currentTextBgColorPosition]));
+                }
+                changeTextState(!rl_edit_text.isShown());
+                if (et_tag.getText().length() > 0) {
+                    addTextToWindow();
+                }
+            }
+        });
+
+        tv_complete_edit.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                //TODO 编辑视频
+//                mCropParam = new CropParam();
+//                mCropParam.setVideoCodec(VideoCodecs.H264_SOFT_FFMPEG);
+//                mCropParam.setInputPath(videoUrl);
+//                mCropParam.setOutputPath(outFileDir+ File.separator+System.currentTimeMillis()+".mp4");
+//                Bitmap bitmap = Bitmap.createBitmap(rl_tuya.getWidth(), rl_tuya.getHeight(), Bitmap.Config.ARGB_8888);
+//                rl_tuya.draw(new Canvas(bitmap));
+                showProgressDialog("视频编辑中...");
+                getBackgroundHandler().post(new Runnable() {
+                    @Override
+                    public void run() {
+                        rl_tuya.setDrawingCacheEnabled(true);
+                        rl_tuya.buildDrawingCache();  //启用DrawingCache并创建位图
+                        Bitmap bitmap = Bitmap.createBitmap(rl_tuya.getDrawingCache()); //创建一个DrawingCache的拷贝，因为DrawingCache得到的位图在禁用后会被回收
+                        rl_tuya.setDrawingCacheEnabled(false);
+                        rl_tuya.destroyDrawingCache();
+                        final File pictureFile = new File(outFileDir, System.currentTimeMillis() + ".png");
+                        FileOutputStream fileOutputStream = null;
+                        try {
+                            fileOutputStream = new FileOutputStream(pictureFile);
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fileOutputStream);
+                        } catch (FileNotFoundException e) {
+                            e.printStackTrace();
+                        } finally {
+                            try {
+                                fileOutputStream.close();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        mAliyunEditor.applyWaterMark(pictureFile.getAbsolutePath(), 1f, 1f, 0.5f, 0.5f);
+                        final String outFilePath = outFileDir + File.separator + System.currentTimeMillis() + ".mp4";
+                        mAliyunEditor.compose(mVideoParam, outFilePath, new AliyunIComposeCallBack() {
+                            @Override
+                            public void onComposeError(int i) {
+                                post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        closeProgressDialog();
+                                        if (mCallback != null) {
+                                            mCallback.editError();
+                                        }
+                                    }
+                                });
+                            }
+
+                            @Override
+                            public void onComposeProgress(int i) {
+                                if (mCallback != null) {
+                                    mCallback.editProgress(i);
+                                }
+                            }
+
+                            @Override
+                            public void onComposeCompleted() {
+                                pictureFile.delete();
+                                post(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        closeProgressDialog();
+                                        if (mCallback != null) {
+                                            mCallback.completeEdit(outFilePath);
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+        tv_cancel_edit.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mCallback != null) {
+                    mCallback.cancelEdit();
+                }
+            }
+        });
+
+        rl_text_color_or_bg_color.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                isTextColor = !isTextColor;
+                if (isTextColor) {
+                    iv_text_color_or_bg_color.setImageResource(R.mipmap.icon_text_color);
+                    if (currentTextBgColorPosition >= 0) {
+                        ViewGroup childView = (ViewGroup) ll_text_color.getChildAt(currentTextBgColorPosition);
+                        childView.getChildAt(1).setVisibility(View.GONE);
+                    }
+                    ViewGroup childView1 = (ViewGroup) ll_text_color.getChildAt(currentTextColorPosition);
+                    childView1.getChildAt(1).setVisibility(View.VISIBLE);
+                    et_tag.setTextColor(getResources().getColor(colors[currentTextColorPosition]));
+                } else {
+                    iv_text_color_or_bg_color.setImageResource(R.mipmap.icon_text_bg_color);
+                    ViewGroup childView = (ViewGroup) ll_text_color.getChildAt(currentTextColorPosition);
+                    childView.getChildAt(1).setVisibility(View.GONE);
+                    if (currentTextBgColorPosition >= 0) {
+                        ViewGroup childView1 = (ViewGroup) ll_text_color.getChildAt(currentTextBgColorPosition);
+                        childView1.getChildAt(1).setVisibility(View.VISIBLE);
+                        et_tag.getPaint().bgColor = getResources().getColor(colors[currentTextBgColorPosition]);
+                        et_tag.setTextColor(Color.TRANSPARENT);
+                        et_tag.setTextColor(getResources().getColor(colors[currentTextColorPosition]));
+                    }
+                }
+            }
+        });
+    }
+
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        Log.e(TAG, "dispatchKeyEvent: =============" + rl_expression.isShown());
+        switch (event.getKeyCode()) {
+            case KeyEvent.KEYCODE_BACK:
+                // 处理自己的逻辑break;
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (rl_expression.isShown()) {
+                        rl_expression.setVisibility(GONE);
+                        return true;
+                    }
+                    if (rl_edit_text.isShown()) {
+                        rl_edit_text.setVisibility(GONE);
+                        return true;
+                    }
+                }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    private void changeTuYaState(boolean flag) {
+        if (flag) {
+            tuyaView.setDrawMode(flag);
+            tuyaView.setNewPaintColor(getResources().getColor(colors[currentColorPosition]));
+            iv_tuya.setImageResource(R.mipmap.tuya_pen_click);
+            llTuYAColor.setVisibility(View.VISIBLE);
+            v_line.setVisibility(View.VISIBLE);
+        } else {
+            tuyaView.setDrawMode(flag);
+            llTuYAColor.setVisibility(View.GONE);
+            v_line.setVisibility(View.GONE);
+            iv_tuya.setImageResource(R.mipmap.tuya_pen);
+        }
+    }
+
+
+    /**
+     * 更改文字输入状态的界面
+     */
+    private void changeTextState(boolean flag) {
+        if (flag) {
+            popupEditText();
+            rl_edit_text.setVisibility(VISIBLE);
+        } else {
+            rl_edit_text.setVisibility(GONE);
+            manager.hideSoftInputFromWindow(et_tag.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+        }
+    }
+
+
+    /**
+     * 添加文字到界面上
+     */
+    private void addTextToWindow() {
+
+        TouchView touchView = new TouchView(getContext());
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(tv_tag.getWidth(), tv_tag.getHeight());
+        layoutParams.addRule(RelativeLayout.CENTER_IN_PARENT);
+        touchView.setLayoutParams(layoutParams);
+        Bitmap bitmap = Bitmap.createBitmap(tv_tag.getWidth(), tv_tag.getHeight(), Bitmap.Config.ARGB_8888);
+        tv_tag.draw(new Canvas(bitmap));
+        ViewCompat.setBackground(touchView, new BitmapDrawable(bitmap));
+        touchView.setLimitsX(0, getWidth());
+        touchView.setLimitsY(0, getHeight() - DensityUtil.dip2px(getContext(), 100) / 2);
+        touchView.setOnLimitsListener(new TouchView.OnLimitsListener() {
+            @Override
+            public void OnOutLimits(float x, float y) {
+                tv_hint_delete.setCompoundDrawablesWithIntrinsicBounds(null, getResources().getDrawable(R.mipmap.icon_delete_red), null, null);
+                tv_hint_delete.setTextColor(Color.RED);
+            }
+
+            @Override
+            public void OnInnerLimits(float x, float y) {
+                tv_hint_delete.setCompoundDrawablesWithIntrinsicBounds(null, getResources().getDrawable(R.mipmap.icon_delete), null, null);
+                tv_hint_delete.setTextColor(Color.WHITE);
+            }
+        });
+        touchView.setOnTouchListener(new TouchView.OnTouchListener() {
+            @Override
+            public void onDown(TouchView view, MotionEvent event) {
+                tv_hint_delete.setVisibility(View.VISIBLE);
+                changeMode(false);
+            }
+
+            @Override
+            public void onMove(TouchView view, MotionEvent event) {
+
+            }
+
+            @Override
+            public void onUp(TouchView view, MotionEvent event) {
+                tv_hint_delete.setVisibility(View.GONE);
+                changeMode(true);
+                if (view.isOutLimits()) {
+                    rl_touch_view.removeView(view);
+                }
+            }
+        });
+
+        rl_touch_view.addView(touchView);
+
+        et_tag.setText("");
+        tv_tag.setText("");
+    }
+
+
+    /**
+     * 添加表情到界面上
+     */
+    private void addExpressionToWindow(int result) {
+
+        TouchView touchView = new TouchView(getContext());
+        touchView.setBackgroundResource(result);
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(DensityUtil.dip2px(getContext(), 100), DensityUtil.dip2px(getContext(), 100));
+        layoutParams.addRule(RelativeLayout.CENTER_IN_PARENT);
+        touchView.setLayoutParams(layoutParams);
+
+        touchView.setLimitsX(0, getWidth());
+        touchView.setLimitsY(0, getHeight() - DensityUtil.dip2px(getContext(), 100) / 2);
+        touchView.setOnLimitsListener(new TouchView.OnLimitsListener() {
+            @Override
+            public void OnOutLimits(float x, float y) {
+                tv_hint_delete.setCompoundDrawablesWithIntrinsicBounds(null, getResources().getDrawable(R.mipmap.icon_delete_red), null, null);
+                tv_hint_delete.setTextColor(Color.RED);
+            }
+
+            @Override
+            public void OnInnerLimits(float x, float y) {
+                tv_hint_delete.setCompoundDrawablesWithIntrinsicBounds(null, getResources().getDrawable(R.mipmap.icon_delete), null, null);
+                tv_hint_delete.setTextColor(Color.WHITE);
+            }
+        });
+        touchView.setOnTouchListener(new TouchView.OnTouchListener() {
+            @Override
+            public void onDown(TouchView view, MotionEvent event) {
+                tv_hint_delete.setVisibility(View.VISIBLE);
+                changeMode(false);
+            }
+
+            @Override
+            public void onMove(TouchView view, MotionEvent event) {
+
+            }
+
+            @Override
+            public void onUp(TouchView view, MotionEvent event) {
+                tv_hint_delete.setVisibility(View.GONE);
+                changeMode(true);
+                if (view.isOutLimits()) {
+                    rl_touch_view.removeView(view);
+                }
+            }
+        });
+
+        rl_touch_view.addView(touchView);
+    }
+
+    /**
+     * 弹出键盘
+     */
+    public void popupEditText() {
+        isFirstShowEditText = true;
+        et_tag.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                if (isFirstShowEditText) {
+                    isFirstShowEditText = false;
+                    et_tag.setFocusable(true);
+                    et_tag.setFocusableInTouchMode(true);
+                    et_tag.requestFocus();
+                    isFirstShowEditText = !manager.showSoftInput(et_tag, 0);
+                }
+            }
+        });
+    }
+
+    //更改界面模式
+    private void changeMode(boolean flag) {
+        if (flag) {
+            tv_cancel_edit.setVisibility(View.VISIBLE);
+            tv_complete_edit.setVisibility(View.VISIBLE);
+            layout_control_tab.setVisibility(View.VISIBLE);
+        } else {
+            tv_cancel_edit.setVisibility(View.GONE);
+            tv_complete_edit.setVisibility(View.GONE);
+            layout_control_tab.setVisibility(View.GONE);
+        }
+    }
+
+    /**
+     * 初始化底部颜色选择器
+     * 两个颜色选择器，一个涂鸦颜色，一个字体颜色
+     */
+    private void initColors() {
+        int dp20 = (int) getResources().getDimension(R.dimen.dp20);
+        int dp25 = (int) getResources().getDimension(R.dimen.dp25);
+        for (int x = 0; x < drawableBg.length; x++) {
+            RelativeLayout relativeLayoutTuYa = new RelativeLayout(getContext());
+            RelativeLayout relativeLayoutText = new RelativeLayout(getContext());
+            LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT);
+            layoutParams.weight = 1;
+            relativeLayoutTuYa.setLayoutParams(layoutParams);
+            relativeLayoutText.setLayoutParams(layoutParams);
+
+            View viewTuYa = new View(getContext());
+            View viewText = new View(getContext());
+            viewTuYa.setBackgroundDrawable(getResources().getDrawable(drawableBg[x]));
+            viewText.setBackgroundDrawable(getResources().getDrawable(drawableBg[x]));
+            RelativeLayout.LayoutParams layoutParams1 = new RelativeLayout.LayoutParams(dp20, dp20);
+            layoutParams1.addRule(RelativeLayout.CENTER_IN_PARENT);
+            viewTuYa.setLayoutParams(layoutParams1);
+            viewText.setLayoutParams(layoutParams1);
+            relativeLayoutTuYa.addView(viewTuYa);
+            relativeLayoutText.addView(viewText);
+
+            final View viewTuYa2 = new View(getContext());
+            final View viewText2 = new View(getContext());
+            viewTuYa2.setBackgroundResource(R.mipmap.color_click);
+            viewText2.setBackgroundResource(R.mipmap.color_click);
+            RelativeLayout.LayoutParams layoutParams2 = new RelativeLayout.LayoutParams(dp25, dp25);
+            layoutParams2.addRule(RelativeLayout.CENTER_IN_PARENT);
+            viewTuYa2.setLayoutParams(layoutParams2);
+            viewText2.setLayoutParams(layoutParams2);
+            if (x != 0) {
+                viewTuYa2.setVisibility(View.GONE);
+                viewText2.setVisibility(View.GONE);
+            }
+            relativeLayoutTuYa.addView(viewTuYa2);
+            relativeLayoutText.addView(viewText2);
+
+            final int position = x;
+            relativeLayoutTuYa.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (currentColorPosition != position) {
+                        viewTuYa2.setVisibility(View.VISIBLE);
+                        ViewGroup parent = (ViewGroup) v.getParent();
+                        ViewGroup childView = (ViewGroup) parent.getChildAt(currentColorPosition);
+                        childView.getChildAt(1).setVisibility(View.GONE);
+                        tuyaView.setNewPaintColor(getResources().getColor(colors[position]));
+                        currentColorPosition = position;
+                    }
+                }
+            });
+            relativeLayoutText.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (isTextColor) {
+                        if (currentTextColorPosition != position) {
+                            viewText2.setVisibility(View.VISIBLE);
+                            ViewGroup parent = (ViewGroup) v.getParent();
+                            ViewGroup childView = (ViewGroup) parent.getChildAt(currentTextColorPosition);
+                            childView.getChildAt(1).setVisibility(View.GONE);
+                            et_tag.setTextColor(getResources().getColor(colors[position]));
+                            currentTextColorPosition = position;
+                        }
+                    } else {
+                        if (currentTextBgColorPosition != position) {
+                            viewText2.setVisibility(View.VISIBLE);
+                            ViewGroup parent = (ViewGroup) v.getParent();
+                            if (currentTextBgColorPosition >= 0) {
+                                ViewGroup childView = (ViewGroup) parent.getChildAt(currentTextBgColorPosition);
+                                childView.getChildAt(1).setVisibility(View.GONE);
+                            }
+                            et_tag.getPaint().bgColor = getResources().getColor(colors[position]);
+                            et_tag.setTextColor(Color.TRANSPARENT);
+                            et_tag.setTextColor(getResources().getColor(colors[currentTextColorPosition]));
+                            currentTextBgColorPosition = position;
+                        }
+                    }
+                }
+            });
+
+            llTuYAColor.addView(relativeLayoutTuYa, x);
+            ll_text_color.addView(relativeLayoutText, x);
+        }
+    }
+
+    /**
+     * 初始化表情
+     */
+    private void initExpression() {
+        if (rl_expression.getChildCount() > 0) {
+            return;
+        }
+        int dp80 = (int) getResources().getDimension(R.dimen.dp80);
+        int dp10 = (int) getResources().getDimension(R.dimen.dp10);
+        for (int x = 0; x < expressions.length; x++) {
+            ImageView imageView = new ImageView(getContext());
+            imageView.setPadding(dp10, dp10, dp10, dp10);
+            final int result = expressions[x];
+            imageView.setImageResource(result);
+            imageView.setLayoutParams(new ViewGroup.LayoutParams(getWidth() / 4, dp80));
+            imageView.setX(x % 4 * getWidth() / 4);
+            imageView.setY(x / 4 * dp80);
+            imageView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    rl_expression.setVisibility(View.GONE);
+                    addExpressionToWindow(result);
+                }
+            });
+            rl_expression.addView(imageView);
+        }
+    }
+
+    public void setCallback(EditVideoViewCallback callback) {
+        mCallback = callback;
+    }
+
+    public void setOutFileDir(String outFileDir) {
+        this.outFileDir = outFileDir;
+    }
+
+    public void setVideoUrl(final String videoUrl) {
+        this.videoUrl = videoUrl;
+        mVideoPlayView.setDataSource(videoUrl);
+        getBackgroundHandler().post(new Runnable() {
+            @Override
+            public void run() {
+                AliyunIImport aliyunIImport = AliyunImportCreator.getImportInstance(getContext());
+                MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+                int duration = 0;
+                int width = 0;
+                int height = 0;
+                try {
+                    mmr.setDataSource(videoUrl);
+                    aliyunIImport.setVideoParam(mVideoParam);
+                    width = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+                    height = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+                    duration = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                } catch (Exception e) {
+                    Log.e(AliyunTag.TAG, "video invalid, return");
+                    return;
+                }
+                mmr.release();
+                if (height > 1280 || width > 1280) {
+                    if (width >= height) {
+                        mVideoParam.setOutputHeight((int) (height / ((float) width / 1280)));
+                        mVideoParam.setOutputWidth(1280);
+                    } else {
+                        mVideoParam.setOutputWidth((int) (width / ((float) width / 1280)));
+                        mVideoParam.setOutputHeight(1280);
+                    }
+                } else {
+                    mVideoParam.setOutputHeight(height);
+                    mVideoParam.setOutputWidth(width);
+                }
+                aliyunIImport.addVideo(videoUrl, 0, duration, null, AliyunDisplayMode.DEFAULT);
+                Uri projectUri = Uri.fromFile(new File(aliyunIImport.generateProjectConfigure()));
+                mAliyunEditor = AliyunEditorFactory.creatAliyunEditor(projectUri, new SampleEditorCallBack());
+                mAliyunEditor.init(null, getContext());
+                mAliyunIClipConstructor = mAliyunEditor.getSourcePartManager();
+            }
+        });
+    }
+
+    public interface EditVideoViewCallback {
+        void cancelEdit();
+
+        void completeEdit(String outPath);
+
+        void editProgress(int progress);
+
+        void editError();
+
+    }
+
+}

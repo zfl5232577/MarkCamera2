@@ -16,8 +16,6 @@ import android.view.View;
 import android.view.animation.LinearInterpolator;
 import android.widget.Toast;
 
-import java.util.logging.Logger;
-
 public class CaptureButton extends View {
 
     public final String TAG = "CaptureButtom";
@@ -54,6 +52,8 @@ public class CaptureButton extends View {
     private final int STATE_RECORDED = 6;
     private final int STATE_FINISH = 7;
 
+    private boolean WriteFileFinish = false;
+
     private float key_down_Y;
 
     private RectF rectF;
@@ -64,6 +64,7 @@ public class CaptureButton extends View {
     private ValueAnimator record_anim = ValueAnimator.ofFloat(0, 360);
     private CaptureListener mCaptureListener;
     private int mMaxRecordTime = 10;
+    private boolean enableEdit = true;
 
     @RecordVideoView.Mode
     private int mMode;
@@ -84,9 +85,14 @@ public class CaptureButton extends View {
         STATE_SELECTED = STATE_LESSNESS;
     }
 
-    public void reStar(){
+    public void reStar() {
         STATE_SELECTED = STATE_LESSNESS;
+        WriteFileFinish = false;
         requestLayout();
+    }
+
+    public void setWriteFileFinish(boolean writeFileFinish) {
+        WriteFileFinish = writeFileFinish;
     }
 
     @RecordVideoView.Mode
@@ -141,7 +147,7 @@ public class CaptureButton extends View {
             canvas.drawCircle(btn_center_X, btn_center_Y, btn_outside_radius, mPaint);
             mPaint.setColor(Color.WHITE);
             canvas.drawCircle(btn_center_X, btn_center_Y, btn_inside_radius, mPaint);
-            mPaint.setTextSize(40);
+            mPaint.setTextSize(sp2px(14));
             mPaint.setTextAlign(Paint.Align.CENTER);
             String desc = "";
             if (mMode == RecordVideoView.TAKE_PHOTO) {
@@ -151,19 +157,19 @@ public class CaptureButton extends View {
             } else {
                 desc = "轻触拍照,长按摄像";
             }
-            canvas.drawText(desc, btn_center_X, 40, mPaint);
+            canvas.drawText(desc, btn_center_X, dp2px(14), mPaint);
 
             //draw Progress bar
             Paint paintArc = new Paint();
             paintArc.setAntiAlias(true);
             paintArc.setColor(0xFF00CC00);
             paintArc.setStyle(Paint.Style.STROKE);
-            paintArc.setStrokeWidth(10);
+            paintArc.setStrokeWidth(dp2px(5));
 
-            rectF = new RectF(btn_center_X - (btn_after_outside_radius - 5),
-                    btn_center_Y - (btn_after_outside_radius - 5),
-                    btn_center_X + (btn_after_outside_radius - 5),
-                    btn_center_Y + (btn_after_outside_radius - 5));
+            rectF = new RectF(btn_center_X - (btn_after_outside_radius - dp2px(2.5f)),
+                    btn_center_Y - (btn_after_outside_radius - dp2px(2.5f)),
+                    btn_center_X + (btn_after_outside_radius - dp2px(2.5f)),
+                    btn_center_Y + (btn_after_outside_radius - dp2px(2.5f)));
             canvas.drawArc(rectF, -90, progress, false, paintArc);
 
             //draw return button
@@ -171,11 +177,11 @@ public class CaptureButton extends View {
             paint.setAntiAlias(true);
             paint.setColor(Color.WHITE);
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(4);
+            paint.setStrokeWidth(dp2px(2));
             Path path = new Path();
 
             btn_return_X = ((getWidth() / 2) - btn_outside_radius) / 2;
-            btn_return_Y = (getHeight() / 2 + 10);
+            btn_return_Y = (getHeight() / 2 + dp2px(5));
 
             path.moveTo(btn_return_X - btn_return_length, btn_return_Y - btn_return_length);
             path.lineTo(btn_return_X, btn_return_Y);
@@ -191,35 +197,80 @@ public class CaptureButton extends View {
             paint.setAntiAlias(true);
             paint.setColor(Color.BLACK);
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(3);
+            paint.setStrokeWidth(dp2px(1.5f));
             Path path = new Path();
 
-            path.moveTo(btn_left_X - 2, btn_center_Y + 14);
-            path.lineTo(btn_left_X + 14, btn_center_Y + 14);
-            path.arcTo(new RectF(btn_left_X, btn_center_Y - 14, btn_left_X + 28, btn_center_Y + 14), 90, -180);
-            path.lineTo(btn_left_X - 14, btn_center_Y - 14);
+            path.moveTo(btn_left_X - dp2px(1), btn_center_Y + dp2px(7));
+            path.lineTo(btn_left_X + dp2px(7), btn_center_Y + dp2px(7));
+            path.arcTo(new RectF(btn_left_X, btn_center_Y - dp2px(7), btn_left_X + dp2px(14), btn_center_Y + dp2px(7)), 90, -180);
+            path.lineTo(btn_left_X - dp2px(7), btn_center_Y - dp2px(7));
             canvas.drawPath(path, paint);
 
 
             paint.setStyle(Paint.Style.FILL);
             path.reset();
-            path.moveTo(btn_left_X - 14, btn_center_Y - 22);
-            path.lineTo(btn_left_X - 14, btn_center_Y - 6);
-            path.lineTo(btn_left_X - 23, btn_center_Y - 14);
+            path.moveTo(btn_left_X - dp2px(7), btn_center_Y - dp2px(11));
+            path.lineTo(btn_left_X - dp2px(7), btn_center_Y - dp2px(3));
+            path.lineTo(btn_left_X - dp2px(11.5f), btn_center_Y - dp2px(7));
             path.close();
             canvas.drawPath(path, paint);
 
+            //中间button
+
+            if (enableEdit) {
+                canvas.drawCircle(btn_center_X, btn_center_Y, btn_result_radius, mPaint);
+                paint.setStyle(Paint.Style.STROKE);
+                path.reset();
+                path.moveTo(btn_center_X - dp2px(14), btn_center_Y);
+                path.lineTo(btn_center_X - dp2px(7), btn_center_Y);
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X - dp2px(5), btn_center_Y + dp2px(3));
+                path.lineTo(btn_center_X - dp2px(5), btn_center_Y - dp2px(3));
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X - dp2px(5), btn_center_Y);
+                path.lineTo(btn_center_X + dp2px(14), btn_center_Y);
+                canvas.drawPath(path, paint);
+
+                path.moveTo(btn_center_X - dp2px(14), btn_center_Y + dp2px(11));
+                path.lineTo(btn_center_X + dp2px(5), btn_center_Y + dp2px(11));
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X + dp2px(5), btn_center_Y + dp2px(14));
+                path.lineTo(btn_center_X + dp2px(5), btn_center_Y + dp2px(8));
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X + dp2px(7), btn_center_Y + dp2px(11));
+                path.lineTo(btn_center_X + dp2px(14), btn_center_Y + dp2px(11));
+                canvas.drawPath(path, paint);
+
+                path.moveTo(btn_center_X - dp2px(14), btn_center_Y - dp2px(11));
+                path.lineTo(btn_center_X + dp2px(5), btn_center_Y - dp2px(11));
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X + dp2px(5), btn_center_Y - dp2px(14));
+                path.lineTo(btn_center_X + dp2px(5), btn_center_Y - dp2px(8));
+                canvas.drawPath(path, paint);
+                path.reset();
+                path.moveTo(btn_center_X + dp2px(7), btn_center_Y - dp2px(11));
+                path.lineTo(btn_center_X + dp2px(14), btn_center_Y - dp2px(11));
+                canvas.drawPath(path, paint);
+            }
+
+
+            //右边button
             mPaint.setColor(Color.WHITE);
             canvas.drawCircle(btn_right_X, btn_center_Y, btn_result_radius, mPaint);
 
             paint.setStyle(Paint.Style.STROKE);
             paint.setColor(0xFF00CC00);
-            paint.setStrokeWidth(4);
+            paint.setStrokeWidth(dp2px(2));
             path.reset();
-            path.moveTo(btn_right_X - 28, btn_center_Y);
-            path.lineTo(btn_right_X - 8, btn_center_Y + 22);
-            path.lineTo(btn_right_X + 30, btn_center_Y - 20);
-            path.lineTo(btn_right_X - 8, btn_center_Y + 18);
+            path.moveTo(btn_right_X - dp2px(14), btn_center_Y);
+            path.lineTo(btn_right_X - dp2px(4), btn_center_Y + dp2px(11));
+            path.lineTo(btn_right_X + dp2px(15), btn_center_Y - dp2px(10));
+            path.lineTo(btn_right_X - dp2px(4), btn_center_Y + dp2px(9));
             path.close();
             canvas.drawPath(path, paint);
         }
@@ -234,10 +285,10 @@ public class CaptureButton extends View {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
                 if (STATE_SELECTED == STATE_LESSNESS) {
-                    if (event.getY() > btn_return_Y - 37 &&
-                            event.getY() < btn_return_Y + 10 &&
-                            event.getX() > btn_return_X - 37 &&
-                            event.getX() < btn_return_X + 37) {
+                    if (event.getY() > btn_return_Y - dp2px(19) &&
+                            event.getY() < btn_return_Y + dp2px(5) &&
+                            event.getX() > btn_return_X - dp2px(19) &&
+                            event.getX() < btn_return_X + dp2px(19)) {
                         STATE_SELECTED = STATE_READYQUIT;
                     } else if (event.getY() > btn_center_Y - btn_outside_radius &&
                             event.getY() < btn_center_Y + btn_outside_radius &&
@@ -254,7 +305,7 @@ public class CaptureButton extends View {
                             if (mCaptureListener != null) {
                                 mCaptureListener.record();
                             }
-                            Log.e(TAG, "onTouchEvent: 点击了" );
+                            Log.e(TAG, "onTouchEvent: 点击了");
                             postCheckForLongTouch();
                         }
                     }
@@ -273,6 +324,7 @@ public class CaptureButton extends View {
                             }
                         }
                         STATE_SELECTED = STATE_LESSNESS;
+                        WriteFileFinish = false;
                         btn_left_X = btn_center_X;
                         btn_right_X = btn_center_X;
                         invalidate();
@@ -284,11 +336,39 @@ public class CaptureButton extends View {
                             ) {
                         if (STATE_SELECTED != STATE_FINISH && mCaptureListener != null) {
                             if (STATE_SELECTED == STATE_RECORD_BROWSE) {
-                                mCaptureListener.getRecordResult();
+                                if (WriteFileFinish) {
+                                    mCaptureListener.getRecordResult();
+                                } else {
+                                    Toast.makeText(mContext, "文件正在合成", Toast.LENGTH_SHORT).show();
+                                }
                             } else if (STATE_SELECTED == STATE_PICTURE_BROWSE) {
-                                mCaptureListener.determine();
+                                if (WriteFileFinish) {
+                                    mCaptureListener.determine();
+                                } else {
+                                    Toast.makeText(mContext, "文件正在合成", Toast.LENGTH_SHORT).show();
+                                }
                             }
                             STATE_SELECTED = STATE_FINISH;
+                        }
+                    } else if (enableEdit && event.getY() > btn_center_Y - btn_result_radius &&
+                            event.getY() < btn_center_Y + btn_result_radius &&
+                            event.getX() > btn_center_X - btn_result_radius &&
+                            event.getX() < btn_center_X + btn_result_radius &&
+                            event.getPointerCount() == 1) {
+                        if (STATE_SELECTED != STATE_FINISH && mCaptureListener != null) {
+                            if (STATE_SELECTED == STATE_RECORD_BROWSE) {
+                                if (WriteFileFinish) {
+                                    mCaptureListener.editVideo();
+                                } else {
+                                    Toast.makeText(mContext, "文件正在合成", Toast.LENGTH_SHORT).show();
+                                }
+                            } else if (STATE_SELECTED == STATE_PICTURE_BROWSE) {
+                                if (WriteFileFinish) {
+                                    mCaptureListener.editPicture();
+                                } else {
+                                    Toast.makeText(mContext, "文件正在合成", Toast.LENGTH_SHORT).show();
+                                }
+                            }
                         }
                     }
                 }
@@ -301,16 +381,16 @@ public class CaptureButton extends View {
                         ) {
                 }
                 if (mCaptureListener != null) {
-                    mCaptureListener.scale((key_down_Y - event.getY())/getWidth());
+                    mCaptureListener.scale((key_down_Y - event.getY()) / getWidth());
                 }
                 break;
             case MotionEvent.ACTION_UP:
                 removeCallbacks(longPressRunnable);
                 if (STATE_SELECTED == STATE_READYQUIT) {
-                    if (event.getY() > btn_return_Y - 37 &&
-                            event.getY() < btn_return_Y + 10 &&
-                            event.getX() > btn_return_X - 37 &&
-                            event.getX() < btn_return_X + 37) {
+                    if (event.getY() > btn_return_Y - dp2px(19) &&
+                            event.getY() < btn_return_Y + dp2px(5) &&
+                            event.getX() > btn_return_X - dp2px(19) &&
+                            event.getX() < btn_return_X + dp2px(19)) {
                         STATE_SELECTED = STATE_LESSNESS;
                         if (mCaptureListener != null) {
                             mCaptureListener.quit();
@@ -331,7 +411,7 @@ public class CaptureButton extends View {
                         if (record_anim.getCurrentPlayTime() == 0) {
                             removeCallbacks(recordRunnable);
                         }
-                        if (mCaptureListener != null){
+                        if (mCaptureListener != null) {
                             mCaptureListener.rencordFail();
                         }
                     } else {
@@ -410,13 +490,13 @@ public class CaptureButton extends View {
                 }
             });
             record_anim.setInterpolator(new LinearInterpolator());
-            record_anim.setDuration(mMaxRecordTime*1000);
+            record_anim.setDuration(mMaxRecordTime * 1000);
             record_anim.start();
         }
     }
 
     public void setMaxRecordTime(int maxRecordTime) {
-        if (maxRecordTime<3){
+        if (maxRecordTime < 3) {
             throw new RuntimeException("maxRecordTime must >= 3 , your  maxRecordTime = maxRecordTime");
         }
         mMaxRecordTime = maxRecordTime;
@@ -489,6 +569,14 @@ public class CaptureButton extends View {
         right_anim.start();
     }
 
+    public boolean isEnableEdit() {
+        return enableEdit;
+    }
+
+    public void setEnableEdit(boolean enableEdit) {
+        this.enableEdit = enableEdit;
+    }
+
     public void setCaptureListener(CaptureListener mCaptureListener) {
         this.mCaptureListener = mCaptureListener;
     }
@@ -514,5 +602,19 @@ public class CaptureButton extends View {
         public void deleteRecordResult();
 
         public void scale(float scaleValue);
+
+        void editVideo();
+
+        void editPicture();
+    }
+
+    private int dp2px(float dpValue) {
+        float scale = mContext.getResources().getDisplayMetrics().density;
+        return (int) (dpValue * scale + 0.5F);
+    }
+
+    private int sp2px(float spValue) {
+        float fontScale = mContext.getResources().getDisplayMetrics().scaledDensity;
+        return (int) (spValue * fontScale + 0.5F);
     }
 }

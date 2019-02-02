@@ -336,6 +336,9 @@ public class VideoPlayView extends TextureView implements
         if (mediaPlayer == null) {
             return;
         }
+        if (mAudioManager != null) {
+            mAudioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+        }
         playFinished = false;
         mediaPlayer.start();
         mediaState = MediaState.PLAYING;

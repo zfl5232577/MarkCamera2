@@ -1,8 +1,10 @@
 package com.mark.markcamera2;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 
 import com.mark.markcameralib.RecordVideoView;
 
@@ -17,13 +19,54 @@ import com.mark.markcameralib.RecordVideoView;
  * </pre>
  */
 public class RecordActivity extends AppCompatActivity {
+    private static final String TAG = RecordActivity.class.getSimpleName();
     private RecordVideoView mRecordVideoView;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_record);
         mRecordVideoView = findViewById(R.id.recordVideoView);
         mRecordVideoView.setMode(getIntent().getIntExtra("mode",RecordVideoView.TAKE_PHOTO_RECORD));
+        mRecordVideoView.setRecordVideoListener(new RecordVideoView.RecordVideoListener() {
+            @Override
+            public void onRecordCaptureFinish() {
+
+            }
+
+            @Override
+            public void onRestart() {
+
+            }
+
+            @Override
+            public void onRecordTaken(String recordFilePath) {
+                Log.e(TAG, "onRecordTaken: "+recordFilePath );
+            }
+
+            @Override
+            public void onPictureTaken(String pictureFilePath) {
+                Log.e(TAG, "onPictureTaken: "+pictureFilePath );
+            }
+
+            @Override
+            public void onEditPicture(String pictureFilePath) {
+                Log.e(TAG, "onEditPicture: "+pictureFilePath );
+            }
+
+            @Override
+            public void onEditRecord(String recordFilePath) {
+                Log.e(TAG, "onEditRecord: "+recordFilePath );
+                Intent intent = new Intent(RecordActivity.this,EditVideoActivity.class);
+                intent.putExtra("path",recordFilePath);
+                startActivity(intent);
+            }
+
+            @Override
+            public void quit() {
+                finish();
+            }
+        });
     }
 
     @Override
