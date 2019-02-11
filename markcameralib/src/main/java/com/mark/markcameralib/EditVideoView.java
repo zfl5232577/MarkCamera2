@@ -5,6 +5,7 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.MediaMetadataRetriever;
 import android.net.Uri;
@@ -13,8 +14,8 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.view.ViewCompat;
+import android.support.v4.view.ViewPropertyAnimatorListener;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -39,12 +40,12 @@ import com.aliyun.common.global.AliyunTag;
 import com.aliyun.crop.AliyunCropCreator;
 import com.aliyun.crop.struct.CropParam;
 import com.aliyun.crop.supply.AliyunICrop;
+import com.aliyun.crop.supply.CropCallback;
 import com.aliyun.qupai.editor.AliyunIComposeCallBack;
 import com.aliyun.qupai.editor.AliyunIEditor;
 import com.aliyun.qupai.editor.impl.AliyunEditorFactory;
 import com.aliyun.qupai.import_core.AliyunIImport;
 import com.aliyun.qupai.import_core.AliyunImportCreator;
-import com.aliyun.svideo.sdk.external.struct.AliyunIClipConstructor;
 import com.aliyun.svideo.sdk.external.struct.common.AliyunDisplayMode;
 import com.aliyun.svideo.sdk.external.struct.common.AliyunVideoParam;
 import com.aliyun.svideo.sdk.external.struct.common.VideoDisplayMode;
@@ -52,10 +53,15 @@ import com.aliyun.svideo.sdk.external.struct.common.VideoQuality;
 import com.aliyun.svideo.sdk.external.struct.encoder.VideoCodecs;
 import com.aliyun.vod.common.utils.DensityUtil;
 import com.mark.markcameralib.common.sdk.SampleEditorCallBack;
+import com.mark.markcameralib.crop.FrameExtractor10;
+import com.mark.markcameralib.crop.VideoTrimAdapter;
+import com.mark.markcameralib.view.CutView;
+import com.mark.markcameralib.view.HorizontalListView;
 import com.mark.markcameralib.view.SoftKeyBoardListener;
 import com.mark.markcameralib.view.TouchView;
 import com.mark.markcameralib.view.TuyaView;
 import com.mark.markcameralib.view.VideoPlayView;
+import com.mark.markcameralib.view.VideoSliceSeekBar;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -85,6 +91,13 @@ public class EditVideoView extends FrameLayout {
     private LinearLayout ll_text_color;
     private RelativeLayout rl_touch_view;
     private RelativeLayout rl_edit_text;
+    private RelativeLayout rl_cut;
+    private RelativeLayout rl_clip;
+    private HorizontalListView video_tailor_image_list;
+    private VideoSliceSeekBar seek_bar;
+    private TextView tv_video_time;
+    private TextView tv_cancel_clip;
+    private TextView tv_complete_clip;
     private EditText et_tag;
     private TextView tv_tag;
     private TextView tv_hint_delete;
@@ -96,8 +109,11 @@ public class EditVideoView extends FrameLayout {
     private ImageView iv_tuya;
     private ImageView iv_biaoqing;
     private ImageView iv_wenzi;
-    private ImageView iv_shear;
+    private ImageView iv_cut;
     private ImageView iv_clip;
+    private CutView cutView;
+    private TextView tv_cancel_cut;
+    private TextView tv_complete_cut;
     private RelativeLayout rl_back;
     private RelativeLayout rl_expression;
     private TextView tv_cancel_text_edit;
@@ -119,17 +135,36 @@ public class EditVideoView extends FrameLayout {
     private AliyunICrop mAliyunCrop;
     private AliyunIEditor mAliyunEditor;
     private CropParam mCropParam;
-    private AliyunIClipConstructor mAliyunIClipConstructor;
     private AliyunVideoParam mVideoParam;
 
     private Handler mBackgroundHandler;
     private AlertDialog progressDialog;
     private TextView progressTextView;
+    private int mVideoDuration;
+    private int mVideoWidth;
+    private int mVideoHeight;
+    private FrameExtractor10 kFrame;
+    private VideoTrimAdapter adapter;
+    private long mStartTime;
+    private long mEndTime;
+    private Runnable mRunnable = new Runnable() {
+        @Override
+        public void run() {
+            long currentPlayPos = mVideoPlayView.getCurrentPos();
+            Log.d(TAG, "currentPlayPos:" + currentPlayPos);
+            if (currentPlayPos < mEndTime) {
+                seek_bar.showFrameProgress(true);
+                seek_bar.setFrameProgress(currentPlayPos / (float) mVideoDuration);
+            } else {
+                mVideoPlayView.seekTo((int) mStartTime);
+            }
+            postDelayed(this, 100);
+        }
+    };
 
     public void showProgressDialog(String dialogText) {
 
         if (progressDialog == null) {
-
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
             builder.setCancelable(false);
             View view = View.inflate(getContext(), R.layout.markcamera_dialog_loading, null);
@@ -180,11 +215,13 @@ public class EditVideoView extends FrameLayout {
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         initExpression();
+        setListViewHeight();
     }
 
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
+        removeCallbacks(mRunnable);
         Log.e(TAG, "onDetachedFromWindow:------------------------> ");
         if (mAliyunCrop != null) {
             mAliyunCrop.dispose();
@@ -250,12 +287,22 @@ public class EditVideoView extends FrameLayout {
         tuyaView = findViewById(R.id.tuyaView);
         rl_touch_view = findViewById(R.id.rl_touch_view);
         layout_control = findViewById(R.id.layout_control);
+        rl_cut = findViewById(R.id.rl_cut);
+        cutView = findViewById(R.id.cutView);
+        rl_clip = findViewById(R.id.rl_clip);
+        video_tailor_image_list = findViewById(R.id.video_tailor_image_list);
+        seek_bar = findViewById(R.id.seek_bar);
+        tv_video_time = findViewById(R.id.tv_video_time);
+        tv_cancel_clip = findViewById(R.id.tv_cancel_clip);
+        tv_complete_clip = findViewById(R.id.tv_complete_clip);
+        tv_cancel_cut = findViewById(R.id.tv_cancel_cut);
+        tv_complete_cut = findViewById(R.id.tv_complete_cut);
         tv_cancel_edit = findViewById(R.id.tv_cancel_edit);
         tv_complete_edit = findViewById(R.id.tv_complete_edit);
         iv_tuya = findViewById(R.id.iv_tuya);
         iv_biaoqing = findViewById(R.id.iv_biaoqing);
         iv_wenzi = findViewById(R.id.iv_wenzi);
-        iv_shear = findViewById(R.id.iv_shear);
+        iv_cut = findViewById(R.id.iv_cut);
         iv_clip = findViewById(R.id.iv_clip);
         llTuYAColor = findViewById(R.id.llTuYAColor);
         rl_back = findViewById(R.id.rl_back);
@@ -271,6 +318,13 @@ public class EditVideoView extends FrameLayout {
         tv_hint_delete = findViewById(R.id.tv_hint_delete);
         v_line = findViewById(R.id.v_line);
         layout_control_tab = findViewById(R.id.layout_control_tab);
+    }
+
+    private void setListViewHeight() {
+        RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams) video_tailor_image_list.getLayoutParams();
+        layoutParams.height = getWidth() / 8;
+        video_tailor_image_list.setLayoutParams(layoutParams);
+        seek_bar.setLayoutParams(layoutParams);
     }
 
     private void initEvent() {
@@ -297,6 +351,33 @@ public class EditVideoView extends FrameLayout {
             public void onClick(View v) {
                 changeTuYaState(false);
                 changeTextState(!rl_edit_text.isShown());
+            }
+        });
+
+        iv_cut.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeCutState(!rl_cut.isShown());
+            }
+        });
+
+        iv_clip.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeClipState(!rl_clip.isShown());
+            }
+        });
+        tv_cancel_cut.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeCutState(false);
+            }
+        });
+
+        tv_complete_cut.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                cropVideo(true);
             }
         });
 
@@ -456,6 +537,137 @@ public class EditVideoView extends FrameLayout {
                 }
             }
         });
+
+        seek_bar.setSeekBarChangeListener(new VideoSliceSeekBar.SeekBarChangeListener() {
+            @Override
+            public void seekBarValueChanged(float leftThumb, float rightThumb, int whitchSide) {
+                long seekPos = 0;
+                if (whitchSide == 0) {
+                    seekPos = (long) (mVideoDuration * leftThumb / 100);
+                    mStartTime = seekPos;
+                } else if (whitchSide == 1) {
+                    seekPos = (long) (mVideoDuration * rightThumb / 100);
+                    mEndTime = seekPos;
+                }
+                tv_video_time.setText((float) (mEndTime - mStartTime) / 1000 + "s");
+                if (mVideoPlayView != null) {
+                    mVideoPlayView.seekTo((int) seekPos);
+                }
+            }
+
+            @Override
+            public void onSeekStart() {
+                if (mVideoPlayView != null) {
+                    mVideoPlayView.pause();
+                }
+            }
+
+            @Override
+            public void onSeekEnd() {
+                if (mVideoPlayView != null) {
+                    mVideoPlayView.seekTo((int) mStartTime);
+                    mVideoPlayView.start();
+                }
+            }
+        });
+
+        video_tailor_image_list.setOnScrollCallBack(new HorizontalListView.OnScrollCallBack() {
+            @Override
+            public void onScrollDistance(Long count, int distanceX) {
+
+            }
+        });
+
+        tv_cancel_clip.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                changeClipState(false);
+            }
+        });
+
+        tv_complete_clip.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                cropVideo(false);
+            }
+        });
+
+    }
+
+    private void cropVideo(boolean isCut) {
+        showProgressDialog("视频裁剪中...");
+        CropParam cropParam = new CropParam();
+        cropParam.setVideoCodec(VideoCodecs.H264_SOFT_FFMPEG);
+        cropParam.setGop(10);
+        cropParam.setCrf(0);
+        cropParam.setScaleMode(VideoDisplayMode.SCALE);
+        cropParam.setInputPath(videoUrl);
+        final String cutOutPath = outFileDir + File.separator + "cut" + System.currentTimeMillis() + ".mp4";
+        cropParam.setOutputPath(cutOutPath);
+
+        if (isCut){
+
+        float[] cutArr = cutView.getCutArr();
+        float left = cutArr[0];
+        float top = cutArr[1];
+        float right = cutArr[2];
+        float bottom = cutArr[3];
+        if (left == 0 && top == 0 && right == 0 && bottom == 0) {
+            changeCutState(false);
+            return;
+        }
+        int cutWidth = cutView.getRectWidth();
+        int cutHeight = cutView.getRectHeight();
+        //计算宽高缩放比
+        float leftPro = left / cutWidth;
+        float topPro = top / cutHeight;
+        float rightPro = right / cutWidth;
+        float bottomPro = bottom / cutHeight;
+
+        //得到裁剪位置
+        int cropWidth = (int) (mVideoWidth * (rightPro - leftPro));
+        int cropHeight = (int) (mVideoHeight * (bottomPro - topPro));
+        int x = (int) (leftPro * mVideoWidth);
+        int y = (int) (topPro * mVideoHeight);
+        Rect rect = new Rect(x, y, x + cropWidth, y + cropHeight);
+        cropParam.setOutputWidth(cropWidth);
+        cropParam.setOutputHeight(cropHeight);
+        cropParam.setCropRect(rect);
+        cropParam.setStartTime(0);
+        cropParam.setEndTime(mVideoDuration * 1000);
+        }else {
+            cropParam.setOutputWidth(mVideoWidth);
+            cropParam.setOutputHeight(mVideoHeight);
+            cropParam.setStartTime(mStartTime*1000);
+            cropParam.setEndTime(mEndTime * 1000);
+        }
+        mAliyunCrop.setCropParam(cropParam);
+        mAliyunCrop.setCropCallback(new CropCallback() {
+            @Override
+            public void onProgress(int i) {
+                Log.e(TAG, "onProgress: " + i);
+            }
+
+            @Override
+            public void onError(int i) {
+                Log.e(TAG, "onError: " + i);
+                closeProgressDialog();
+            }
+
+            @Override
+            public void onComplete(long l) {
+                closeProgressDialog();
+                changeCutState(false);
+                changeClipState(false);
+                setVideoUrl(cutOutPath);
+            }
+
+            @Override
+            public void onCancelComplete() {
+
+            }
+        });
+        mAliyunCrop.startCrop();
     }
 
 
@@ -494,7 +706,6 @@ public class EditVideoView extends FrameLayout {
         }
     }
 
-
     /**
      * 更改文字输入状态的界面
      */
@@ -508,6 +719,82 @@ public class EditVideoView extends FrameLayout {
         }
     }
 
+
+    /**
+     * 更改裁剪大小的界面
+     */
+    private void changeCutState(boolean flag) {
+        if (flag) {
+            enterCutAnima();
+        } else {
+            rl_cut.setVisibility(GONE);
+            tv_cancel_edit.setVisibility(VISIBLE);
+            tv_complete_edit.setVisibility(VISIBLE);
+            layout_control_tab.setVisibility(VISIBLE);
+            exitCutAnima();
+        }
+    }
+
+    private void changeClipState(boolean flag) {
+        if (flag) {
+            rl_clip.setVisibility(VISIBLE);
+            tv_cancel_edit.setVisibility(GONE);
+            tv_complete_edit.setVisibility(GONE);
+            layout_control_tab.setVisibility(GONE);
+            post(mRunnable);
+            tv_video_time.setText((float) (mEndTime - mStartTime) / 1000 + "s");
+        } else {
+            rl_clip.setVisibility(GONE);
+            tv_cancel_edit.setVisibility(VISIBLE);
+            tv_complete_edit.setVisibility(VISIBLE);
+            layout_control_tab.setVisibility(VISIBLE);
+            removeCallbacks(mRunnable);
+        }
+    }
+
+    private void enterCutAnima() {
+        int width = mVideoPlayView.getWidth();
+        float[] cutMarginArr = cutView.getMargin();
+        float scale = (width - cutMarginArr[0] - cutMarginArr[2]) / width;
+        ViewCompat.animate(mVideoPlayView).setListener(new ViewPropertyAnimatorListener() {
+            @Override
+            public void onAnimationStart(View view) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(View view) {
+                rl_cut.setVisibility(VISIBLE);
+                tv_cancel_edit.setVisibility(GONE);
+                tv_complete_edit.setVisibility(GONE);
+                layout_control_tab.setVisibility(GONE);
+            }
+
+            @Override
+            public void onAnimationCancel(View view) {
+
+            }
+        }).scaleY(scale).scaleX(scale).translationY((cutMarginArr[1] - cutMarginArr[3]) / 2).setDuration(300).start();
+    }
+
+    private void exitCutAnima() {
+        ViewCompat.animate(mVideoPlayView).setListener(new ViewPropertyAnimatorListener() {
+            @Override
+            public void onAnimationStart(View view) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(View view) {
+
+            }
+
+            @Override
+            public void onAnimationCancel(View view) {
+
+            }
+        }).scaleY(1).scaleX(1).translationY(0).setDuration(300).start();
+    }
 
     /**
      * 添加文字到界面上
@@ -781,37 +1068,50 @@ public class EditVideoView extends FrameLayout {
             public void run() {
                 AliyunIImport aliyunIImport = AliyunImportCreator.getImportInstance(getContext());
                 MediaMetadataRetriever mmr = new MediaMetadataRetriever();
-                int duration = 0;
-                int width = 0;
-                int height = 0;
+                mVideoDuration = 0;
+                mVideoWidth = 0;
+                mVideoHeight = 0;
                 try {
                     mmr.setDataSource(videoUrl);
                     aliyunIImport.setVideoParam(mVideoParam);
-                    width = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
-                    height = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
-                    duration = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
+                    mVideoWidth = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH));
+                    mVideoHeight = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT));
+                    mVideoDuration = Integer.parseInt(mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION));
                 } catch (Exception e) {
                     Log.e(AliyunTag.TAG, "video invalid, return");
                     return;
                 }
                 mmr.release();
-                if (height > 1280 || width > 1280) {
-                    if (width >= height) {
-                        mVideoParam.setOutputHeight((int) (height / ((float) width / 1280)));
+                if (mVideoHeight > 1280 || mVideoWidth > 1280) {
+                    if (mVideoWidth >= mVideoHeight) {
+                        mVideoParam.setOutputHeight((int) (mVideoHeight / ((float) mVideoWidth / 1280)));
                         mVideoParam.setOutputWidth(1280);
                     } else {
-                        mVideoParam.setOutputWidth((int) (width / ((float) width / 1280)));
+                        mVideoParam.setOutputWidth((int) (mVideoWidth / ((float) mVideoWidth / 1280)));
                         mVideoParam.setOutputHeight(1280);
                     }
                 } else {
-                    mVideoParam.setOutputHeight(height);
-                    mVideoParam.setOutputWidth(width);
+                    mVideoParam.setOutputHeight(mVideoHeight);
+                    mVideoParam.setOutputWidth(mVideoWidth);
                 }
-                aliyunIImport.addVideo(videoUrl, 0, duration, null, AliyunDisplayMode.DEFAULT);
+                aliyunIImport.addVideo(videoUrl, 0, mVideoDuration, null, AliyunDisplayMode.DEFAULT);
                 Uri projectUri = Uri.fromFile(new File(aliyunIImport.generateProjectConfigure()));
                 mAliyunEditor = AliyunEditorFactory.creatAliyunEditor(projectUri, new SampleEditorCallBack());
                 mAliyunEditor.init(null, getContext());
-                mAliyunIClipConstructor = mAliyunEditor.getSourcePartManager();
+
+                kFrame = new FrameExtractor10();
+                kFrame.setDataSource(videoUrl);
+                mStartTime = 0;
+                mEndTime = mVideoDuration;
+                post(new Runnable() {
+                    @Override
+                    public void run() {
+                        int minDiff = (int) (2000 / (float) mVideoDuration * 100) + 1;
+                        seek_bar.setProgressMinDiff(minDiff > 100 ? 100 : minDiff);
+                        adapter = new VideoTrimAdapter(getContext(), mVideoDuration, kFrame, seek_bar);
+                        video_tailor_image_list.setAdapter(adapter);
+                    }
+                });
             }
         });
     }

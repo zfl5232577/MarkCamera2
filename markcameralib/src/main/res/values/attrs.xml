@@ -24,4 +24,82 @@
             <!--<enum name="take_all" value="3"/>-->
         <!--</attr>-->
     <!--</declare-styleable>-->
+    <declare-styleable name="QuSnap">
+        <attr name="qusnap_background_color" format="reference"/>
+        <attr name="qusnap_tint_color" format="reference"/>
+        <attr name="qusnap_timeline_backgound_color" format="reference"/>
+        <attr name="qusnap_timeline_del_backgound_color" format="reference"/>
+        <attr name="qusnap_back_icon" format="reference"/>
+        <attr name="qusnap_back_icon_disable" format="reference"/>
+        <attr name="qusnap_beauty_icon" format="reference"/>
+        <attr name="qusnap_beauty_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_switch_camera_icon" format="reference"/>
+        <attr name="qusnap_switch_camera_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_switch_light_icon" format="reference"/>
+        <attr name="qusnap_switch_light_icon_disable" format="reference"/>
+        <attr name="qusnap_switch_light_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_gallery_icon" format="reference"/>
+        <attr name="qusnap_gallery_icon_disable" format="reference"/>
+        <attr name="qusnap_gallery_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_record_icon" format="reference"/>
+        <attr name="qusnap_record_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_delete_icon" format="reference"/>
+        <attr name="qusnap_delete_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_complete_icon" format="reference"/>
+        <attr name="qusnap_complete_icon_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_time_txt_color" format="reference"/>
+        <attr name="qusnap_time_txt_size" format="dimension"/>
+        <attr name="qusnap_time_txt_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_time_line_pos_y" format="dimension"/>
+        <attr name="qusnap_crop_sweep_left" format="reference"/>
+        <attr name="qusnap_crop_sweep_right" format="reference"/>
+        <attr name="qusnap_crop_seek_frame" format="reference"/>
+        <attr name="qusnap_crop_seek_padding_color" format="reference"/>
+        <attr name="qusnap_crop_icon_transform" format="reference"/>
+        <attr name="qusnap_crop_icon_transform_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+        <attr name="qusnap_crop_time_txt_color" format="reference"/>
+        <attr name="qusnap_crop_time_txt_size" format="dimension"/>
+        <attr name="qusnap_crop_txt_visibility" format="integer">
+            <enum name="visible" value="0"/>
+            <enum name="invisible" value="1"/>
+            <enum name="gone" value="2"/>
+        </attr>
+    </declare-styleable>
+
 </resources>

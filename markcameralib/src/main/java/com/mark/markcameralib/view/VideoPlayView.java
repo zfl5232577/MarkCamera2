@@ -197,6 +197,13 @@ public class VideoPlayView extends TextureView implements
         return 0;
     }
 
+    public long getCurrentPos() {
+        if (mediaPlayer != null) {
+            return mediaPlayer.getCurrentPosition();
+        }
+        return 0;
+    }
+
     public void stop() {
         try {
             if (mAudioManager != null) {
@@ -274,9 +281,7 @@ public class VideoPlayView extends TextureView implements
             return;
         }
         videoUrl = dataSource;
-        if (mediaState == MediaState.INIT) {
-            play(videoUrl);
-        }
+        play(videoUrl);
     }
 
     public boolean isLooping() {
@@ -316,6 +321,13 @@ public class VideoPlayView extends TextureView implements
             mediaPlayer.reset();
             mediaState = MediaState.INIT;
         }
+    }
+
+    public void seekTo(int seekPos){
+        if (mediaPlayer == null) {
+            return;
+        }
+        mediaPlayer.seekTo(seekPos);
     }
 
     public void pause() {
