@@ -1,5 +1,6 @@
 package com.mark.markcamera2;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -59,7 +60,7 @@ public class RecordActivity extends AppCompatActivity {
                 Log.e(TAG, "onEditRecord: "+recordFilePath );
                 Intent intent = new Intent(RecordActivity.this,EditVideoActivity.class);
                 intent.putExtra("path",recordFilePath);
-                startActivity(intent);
+                startActivityForResult(intent,1000);
             }
 
             @Override
@@ -67,6 +68,14 @@ public class RecordActivity extends AppCompatActivity {
                 finish();
             }
         });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1000 && resultCode== Activity.RESULT_OK){
+            finish();
+        }
     }
 
     @Override

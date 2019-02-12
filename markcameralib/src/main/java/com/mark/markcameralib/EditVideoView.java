@@ -148,14 +148,19 @@ public class EditVideoView extends FrameLayout {
     private long mStartTime;
     private long mEndTime;
     private Runnable mRunnable = new Runnable() {
+        boolean isRestart = false;
         @Override
         public void run() {
             long currentPlayPos = mVideoPlayView.getCurrentPos();
-            Log.d(TAG, "currentPlayPos:" + currentPlayPos);
-            if (currentPlayPos < mEndTime) {
+            Log.d(TAG, "currentPlayPos:" + currentPlayPos+"mStartTime"+mStartTime);
+            if ((isRestart || currentPlayPos>=mStartTime) && currentPlayPos <=mEndTime) {
+                if (currentPlayPos>=mEndTime-900){
+                    isRestart = false;
+                }
                 seek_bar.showFrameProgress(true);
                 seek_bar.setFrameProgress(currentPlayPos / (float) mVideoDuration);
             } else {
+                isRestart = true;
                 mVideoPlayView.seekTo((int) mStartTime);
             }
             postDelayed(this, 100);
