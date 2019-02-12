@@ -442,7 +442,8 @@ public class EditVideoView extends FrameLayout {
                     public void run() {
                         rl_tuya.setDrawingCacheEnabled(true);
                         rl_tuya.buildDrawingCache();  //启用DrawingCache并创建位图
-                        Bitmap bitmap = Bitmap.createBitmap(rl_tuya.getDrawingCache()); //创建一个DrawingCache的拷贝，因为DrawingCache得到的位图在禁用后会被回收
+                        int bitmapHeight =  mVideoHeight*getWidth()/mVideoWidth;
+                        Bitmap bitmap = Bitmap.createBitmap(rl_tuya.getDrawingCache(),0,(getHeight()-bitmapHeight)/2,getWidth(),bitmapHeight); //创建一个DrawingCache的拷贝，因为DrawingCache得到的位图在禁用后会被回收
                         rl_tuya.setDrawingCacheEnabled(false);
                         rl_tuya.destroyDrawingCache();
                         final File pictureFile = new File(outFileDir, System.currentTimeMillis() + ".png");
@@ -686,6 +687,14 @@ public class EditVideoView extends FrameLayout {
                         rl_edit_text.setVisibility(GONE);
                         return true;
                     }
+                    if(rl_cut.isShown()){
+                        changeCutState(false);
+                        return true;
+                    }
+                    if (rl_clip.isShown()){
+                        changeClipState(false);
+                        return true;
+                    }
                 }
         }
         return super.dispatchKeyEvent(event);
@@ -738,6 +747,9 @@ public class EditVideoView extends FrameLayout {
     private void changeClipState(boolean flag) {
         if (flag) {
             rl_clip.setVisibility(VISIBLE);
+            rl_clip.setFocusable(true);
+            rl_clip.setFocusableInTouchMode(true);
+            rl_clip.requestFocus();
             tv_cancel_edit.setVisibility(GONE);
             tv_complete_edit.setVisibility(GONE);
             layout_control_tab.setVisibility(GONE);
@@ -765,6 +777,9 @@ public class EditVideoView extends FrameLayout {
             @Override
             public void onAnimationEnd(View view) {
                 rl_cut.setVisibility(VISIBLE);
+                rl_cut.setFocusable(true);
+                rl_cut.setFocusableInTouchMode(true);
+                rl_cut.requestFocus();
                 tv_cancel_edit.setVisibility(GONE);
                 tv_complete_edit.setVisibility(GONE);
                 layout_control_tab.setVisibility(GONE);
