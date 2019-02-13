@@ -1,6 +1,23 @@
 # MarkCarame2
 界面完全模仿微信朋友圈录制视频界面，用户可以自行在界面覆盖更多操作控件，例如：闪光灯，静音拍摄等。
 
+## ScreenShots
+
+<div align:left;display:inline;>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot1.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot2.jpg"/>
+</div>
+
+<div align:left;display:inline;>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot3.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot4.jpg"/>
+</div>
+
+<div align:left;display:inline;>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot5.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot6.jpg"/>
+</div>
+
 ### 集成方式
     目前lastversion;1.3.0,历史版本见release
     dependencies {
