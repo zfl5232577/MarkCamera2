@@ -843,7 +843,7 @@ public class RecordVideoView extends FrameLayout {
             FileOutputStream fileOutputStream = null;
             try {
                 fileOutputStream = new FileOutputStream(pictureFile);
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, fileOutputStream);
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 60, fileOutputStream);
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } finally {
@@ -1118,7 +1118,7 @@ public class RecordVideoView extends FrameLayout {
 
     private MediaInfo getMediaInfo() {
         MediaInfo info = new MediaInfo();
-        info.setFps(30);
+        info.setFps(25);
         info.setVideoWidth(getVideoWidth());
         info.setVideoHeight(getVideoHeight());
         info.setVideoCodec(mVideoCodec);
