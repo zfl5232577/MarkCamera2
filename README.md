@@ -4,18 +4,18 @@
 ## ScreenShots
 
 <div align:left;display:inline;>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot1.png"/>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot2.png"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot1.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot2.jpg"/>
 </div>
 
 <div align:left;display:inline;>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot3.png"/>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot4.png"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot3.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot4.jpg"/>
 </div>
 
 <div align:left;display:inline;>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot5.png"/>
-<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot6.png"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot5.jpg"/>
+<img width="300" height="540" src="https://github.com/zfl5232577/MarkCamera2/blob/master/screenshots/Screenshot6.jpg"/>
 </div>
 
 ### 集成方式
