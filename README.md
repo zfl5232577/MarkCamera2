@@ -19,7 +19,7 @@
 </div>
 
 ### 集成方式
-    目前lastversion;1.3.0,历史版本见release
+    目前lastversion;1.3.1,历史版本见release
     dependencies {
       implementation 'com.mark:markcamera:lastversion'
     }
