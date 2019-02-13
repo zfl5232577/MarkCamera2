@@ -43,4 +43,17 @@ public class EditVideoActivity extends AppCompatActivity {
             }
         });
     }
+
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        editVideoView.stop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        editVideoView.start();
+    }
 }

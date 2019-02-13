@@ -53,6 +53,9 @@ public class RecordActivity extends AppCompatActivity {
             @Override
             public void onEditPicture(String pictureFilePath) {
                 Log.e(TAG, "onEditPicture: "+pictureFilePath );
+                Intent intent = new Intent(RecordActivity.this,EditImageActivity.class);
+                intent.putExtra("path",pictureFilePath);
+                startActivityForResult(intent,1000);
             }
 
             @Override

@@ -32,7 +32,10 @@
             android:theme="@style/VisualCameraTheme" />
         <activity android:name=".EditVideoActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/VisualCameraTheme" />/>
+            android:theme="@style/VisualCameraTheme" />
+        <activity android:name=".EditImageActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/VisualCameraTheme" />
     </application>
 
 </manifest>

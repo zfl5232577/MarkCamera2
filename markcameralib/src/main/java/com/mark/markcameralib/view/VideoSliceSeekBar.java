@@ -69,7 +69,7 @@ public class VideoSliceSeekBar extends View {
     private int resSweepLeft = R.mipmap.aliyun_svideo_icon_sweep_left,resSweepRight = R.mipmap.aliyun_svideo_icon_sweep_right;
     private int resFrame = R.mipmap.aliyun_svideo_icon_frame;
     private int resBackground = R.color.seek_bar_color_bg;
-    private int resPaddingColor  =  android.R.color.holo_red_dark;
+    private int resPaddingColor  =  R.color.seek_bar_color_fg;
 
 
     private boolean blocked;
@@ -90,7 +90,7 @@ public class VideoSliceSeekBar extends View {
     private float frameProgress;
 
     private static final int PADDING_BOTTOM_TOP = 10;
-    private static final int PADDING_LEFT_RIGHT = 5;
+    private static final int PADDING_LEFT_RIGHT = 0;
 
 
     private void getStyleParam(){
@@ -102,7 +102,7 @@ public class VideoSliceSeekBar extends View {
         resSweepRight = a.getResourceId(1, R.mipmap.aliyun_svideo_icon_sweep_right);
         resFrame = a.getResourceId(2, R.mipmap.aliyun_svideo_icon_frame);
         resBackground =  a.getResourceId(3,R.color.seek_bar_color_bg);
-        resPaddingColor = a.getResourceId(4,android.R.color.holo_red_dark);
+        resPaddingColor = a.getResourceId(4,R.color.seek_bar_color_fg);
 
     }
 
@@ -281,12 +281,13 @@ public class VideoSliceSeekBar extends View {
 //            }
 //        }
         paintThumb.setColor(getResources().getColor(resPaddingColor));
-        canvas.drawRect(drawLeft + thumbSlice.getWidth() - PADDING_LEFT_RIGHT, 0f ,drawRight + PADDING_LEFT_RIGHT,PADDING_BOTTOM_TOP ,paintThumb);
-        canvas.drawRect( drawLeft + thumbSlice.getWidth() - PADDING_LEFT_RIGHT, thumbSlice.getHeight() - PADDING_BOTTOM_TOP ,drawRight + PADDING_LEFT_RIGHT,thumbSlice.getHeight() ,paintThumb);
+        canvas.drawRect(drawLeft - PADDING_LEFT_RIGHT, 0f ,drawRight + thumbSlice.getWidth() +PADDING_LEFT_RIGHT,PADDING_BOTTOM_TOP ,paintThumb);
+        canvas.drawRect( drawLeft  - PADDING_LEFT_RIGHT, thumbSlice.getHeight() - PADDING_BOTTOM_TOP ,drawRight  + thumbSlice.getWidth() + PADDING_LEFT_RIGHT,thumbSlice.getHeight() ,paintThumb);
         paintThumb.setColor(getResources().getColor(resBackground));
-        paintThumb.setAlpha((int) (255 * 0.9));
+        paintThumb.setAlpha((int) (255*0.9));
         canvas.drawRect(0,0,drawLeft + PADDING_LEFT_RIGHT,getHeight(),paintThumb);
         canvas.drawRect(drawRight + thumbSliceRight.getWidth() - PADDING_LEFT_RIGHT,0,getWidth(),getHeight(),paintThumb);
+        paintThumb.setAlpha(255);
         canvas.drawBitmap(thumbSlice, drawLeft, 0, paintThumb);
         canvas.drawBitmap(thumbSliceRight, drawRight, 0, paintThumb);
         if(needFrameProgress){

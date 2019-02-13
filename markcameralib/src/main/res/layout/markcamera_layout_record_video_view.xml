@@ -10,7 +10,7 @@
         android:layout_height="match_parent" />
 
     <com.mark.markcameralib.view.VideoPlayView
-        android:id="@+id/videoPlayView"
+        android:id="@+id/imageview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone"/>

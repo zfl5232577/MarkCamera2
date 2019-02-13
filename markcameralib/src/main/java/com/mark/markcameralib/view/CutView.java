@@ -168,8 +168,8 @@ public class CutView extends View {
         float[] arr = new float[4];
         arr[0] = rectLeft-marginLeft;
         arr[1] = rectTop-marginTop;
-        arr[2] = rectRight-marginRight;
-        arr[3] = rectBottom-marginBottom;
+        arr[2] = rectRight-marginLeft;
+        arr[3] = rectBottom-marginTop;
         return arr;
     }
 

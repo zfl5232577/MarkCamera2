@@ -4,8 +4,8 @@
     android:layout_height="match_parent"
     android:background="@android:color/black">
 
-    <com.mark.markcameralib.view.VideoPlayView
-        android:id="@+id/videoPlayView"
+    <ImageView
+        android:id="@+id/imageview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_centerInParent="true" />
@@ -93,13 +93,6 @@
                 android:padding="@dimen/dp5"
                 android:src="@mipmap/video_shear" />
 
-            <ImageView
-                android:id="@+id/iv_clip"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:layout_weight="1"
-                android:padding="@dimen/dp5"
-                android:src="@mipmap/video_clip" />
         </LinearLayout>
 
         <View
@@ -239,58 +232,6 @@
             android:textColor="#fff"
             android:textSize="12sp"
             android:visibility="gone"/>
-
-        <RelativeLayout
-            android:id="@+id/rl_clip"
-            android:layout_width="match_parent"
-            android:layout_height="130dp"
-            android:visibility="gone"
-            android:layout_alignParentBottom="true">
-
-            <TextView
-                android:id="@+id/tv_video_time"
-                android:layout_centerHorizontal="true"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/white"/>
-
-            <com.mark.markcameralib.view.HorizontalListView
-                android:id="@+id/video_tailor_image_list"
-                android:layout_marginTop="@dimen/dp25"
-                android:layout_marginStart="@dimen/dp5"
-                android:layout_marginEnd="@dimen/dp5"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <com.mark.markcameralib.view.VideoSliceSeekBar
-                android:id="@+id/seek_bar"
-                android:layout_marginTop="@dimen/dp25"
-                android:layout_marginStart="@dimen/dp5"
-                android:layout_marginEnd="@dimen/dp5"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-            <TextView
-                android:id="@+id/tv_cancel_clip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="15dp"
-                android:text="@string/text_cancel"
-                android:layout_alignParentBottom="true"
-                android:textColor="@android:color/white"
-                android:textSize="18sp" />
-
-            <TextView
-                android:id="@+id/tv_complete_clip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_alignParentRight="true"
-                android:layout_alignParentBottom="true"
-                android:padding="15dp"
-                android:text="@string/text_complete"
-                android:textColor="#00CC00"
-                android:textSize="18sp" />
-        </RelativeLayout>
 
     </RelativeLayout>
 

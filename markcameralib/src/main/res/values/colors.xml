@@ -9,4 +9,5 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
     <color name="seek_bar_color_bg">#232A42</color>
+    <color name="seek_bar_color_fg">#E63C5B</color>
 </resources>

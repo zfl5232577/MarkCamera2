@@ -154,7 +154,7 @@ public class RecordVideoView extends FrameLayout {
         // 初始化各项组件
         FrameLayout.inflate(context, R.layout.markcamera_layout_record_video_view, this);
         mGLSurfaceView = findViewById(R.id.glSurfaceView);
-        mVideoPlayView = findViewById(R.id.videoPlayView);
+        mVideoPlayView = findViewById(R.id.imageview);
         mFocusView = findViewById(R.id.focus_view);
         mCaptureButton = findViewById(R.id.captureButton);
         ivShowPicture = findViewById(R.id.iv_ShowPicture);
