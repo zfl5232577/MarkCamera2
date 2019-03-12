@@ -93,6 +93,7 @@ public class RecordVideoView extends FrameLayout {
     private static final int MIN_RECORD_TIME = 1;
     //录制视频是否达到最大值
     private boolean isMaxDuration = false;
+    private boolean recording = false;
     private long startRecordingTime;
     private String mRecordFileDir = Constants.TEMP_PATH;
     private String mRecordFilePath;
@@ -371,6 +372,7 @@ public class RecordVideoView extends FrameLayout {
             @Override
             public void onComplete(final boolean validClip, final long clipDuration) {
                 Log.e(TAG, "onComplete: ");
+                recording = false;
                 if (isCancelRecord) {
                     isCancelRecord = false;
                     return;
@@ -457,9 +459,13 @@ public class RecordVideoView extends FrameLayout {
                     });
                     return;
                 }
-                if (rotation != 90 && bitmap != null) {
+                if ((cameraType == CameraType.BACK && rotation != 90) || (cameraType == CameraType.FRONT && rotation != 270)) {
                     Matrix m = new Matrix();
-                    m.setRotate((rotation - 90) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+                    if (cameraType == CameraType.BACK) {
+                        m.setRotate((rotation - 90) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+                    } else {
+                        m.setRotate((270 - rotation) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+                    }
                     final Bitmap mPictureBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
                     savePicture(mPictureBitmap);
                     post(new Runnable() {
@@ -784,10 +790,11 @@ public class RecordVideoView extends FrameLayout {
             ToastUtils.show(getContext(), getResources().getString(R.string.aliyun_no_free_memory));
             return;
         }
-        if (isMaxDuration) {
+        if (isMaxDuration || recording) {
             return;
         }
         if (recorder != null) {
+            recording = true;
             isStopToCompleteDuration = false;
             mRecordFilePath = mRecordFileDir
                     + File.separator + System.currentTimeMillis() + ".mp4";
@@ -982,6 +989,10 @@ public class RecordVideoView extends FrameLayout {
             return;
         }
         recorder.setLight(flash);
+    }
+
+    public boolean isRecording() {
+        return recording;
     }
 
     private File createPictureDir() {
