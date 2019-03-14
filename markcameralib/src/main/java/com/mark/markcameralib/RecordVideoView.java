@@ -5,6 +5,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Matrix;
@@ -29,6 +30,7 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 
 import com.aliyun.common.global.AliyunTag;
+import com.aliyun.common.license.LicenseConfig;
 import com.aliyun.common.license.LicenseImpl;
 import com.aliyun.common.license.LicenseMessage;
 import com.aliyun.common.license.LicenseType;
@@ -58,6 +60,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
@@ -114,7 +117,6 @@ public class RecordVideoView extends FrameLayout {
     private int mResolutionMode = AliyunSnapVideoParam.RESOLUTION_720P;
 
     private Handler mBackgroundHandler;
-    private Handler mHookHandler;
     private boolean isBrowse;
     private boolean isCancelRecord = false;
     private boolean isRecordSuccess = false;
@@ -371,7 +373,7 @@ public class RecordVideoView extends FrameLayout {
         recorder.setRecordCallback(new RecordCallback() {
             @Override
             public void onComplete(final boolean validClip, final long clipDuration) {
-                Log.e(TAG, "onComplete: ");
+                Log.e(TAG, "onComplete: " + Thread.currentThread());
                 recording = false;
                 if (isCancelRecord) {
                     isCancelRecord = false;
@@ -449,6 +451,7 @@ public class RecordVideoView extends FrameLayout {
 
             @Override
             public void onPictureBack(final Bitmap bitmap) {
+                Log.e(TAG, "onPictureBack: " + Thread.currentThread());
                 if (isRecordSuccess) {
                     post(new Runnable() {
                         @Override
@@ -459,39 +462,44 @@ public class RecordVideoView extends FrameLayout {
                     });
                     return;
                 }
-                if ((cameraType == CameraType.BACK && rotation != 90) || (cameraType == CameraType.FRONT && rotation != 270)) {
-                    Matrix m = new Matrix();
-                    if (cameraType == CameraType.BACK) {
-                        m.setRotate((rotation - 90) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
-                    } else {
-                        m.setRotate((270 - rotation) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+
+                mBackgroundHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if ((cameraType == CameraType.BACK && rotation != 90) || (cameraType == CameraType.FRONT && rotation != 270)) {
+                            Matrix m = new Matrix();
+                            if (cameraType == CameraType.BACK) {
+                                m.setRotate((rotation - 90) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+                            } else {
+                                m.setRotate((270 - rotation) % 360, bitmap.getWidth() / 2, bitmap.getHeight() / 2);
+                            }
+                            final Bitmap mPictureBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
+                            savePicture(mPictureBitmap);
+                            post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showPicturrLayout.setVisibility(VISIBLE);
+                                    ivShowPicture.setImageBitmap(mPictureBitmap);
+                                }
+                            });
+                        } else {
+                            savePicture(bitmap);
+                            post(new Runnable() {
+                                @Override
+                                public void run() {
+                                    showPicturrLayout.setVisibility(VISIBLE);
+                                    ivShowPicture.setImageBitmap(bitmap);
+                                }
+                            });
+                        }
+                        mCaptureButton.setWriteFileFinish(true);
                     }
-                    final Bitmap mPictureBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), m, true);
-                    savePicture(mPictureBitmap);
-                    post(new Runnable() {
-                        @Override
-                        public void run() {
-                            showPicturrLayout.setVisibility(VISIBLE);
-                            ivShowPicture.setImageBitmap(mPictureBitmap);
-                        }
-                    });
-                } else {
-                    savePicture(bitmap);
-                    post(new Runnable() {
-                        @Override
-                        public void run() {
-                            showPicturrLayout.setVisibility(VISIBLE);
-                            ivShowPicture.setImageBitmap(bitmap);
-                        }
-                    });
-                }
-                mCaptureButton.setWriteFileFinish(true);
-                Log.e(TAG, "onPictureBack: ");
+                });
             }
 
             @Override
             public void onPictureDataBack(final byte[] data) {
-                Log.e(TAG, "onPictureDataBack: ");
+                Log.e(TAG, "onPictureDataBack: " + Thread.currentThread());
             }
 
         });
@@ -521,65 +529,41 @@ public class RecordVideoView extends FrameLayout {
     }
 
     private void hookSDKLicense() {
-        HandlerThread thread = new HandlerThread("background");
-        thread.start();
-        mHookHandler = new Handler(thread.getLooper());
-        mHookHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    Class<?> clazz = Class.forName("com.aliyun.common.license.LicenseImpl");
-                    Method method = clazz.getDeclaredMethod("getInstance", Context.class);
-                    final LicenseImpl license = (LicenseImpl) method.invoke(null, mContext);
-                    boolean finish = false;
-                    while (!finish) {
-                        final LicenseMessage licenseMessage = license.getLicenseMessage();
-                        if (licenseMessage != null) {
-                            licenseMessage.setAttemptCount(0);
-                            licenseMessage.setSdkClientLicenseVersion(2);
-                            licenseMessage.setFailedCount(0);
-                            licenseMessage.setValidateTime(System.currentTimeMillis() + 100 * 31536000000L);
-                            licenseMessage.setLicenseType(LicenseType.normal);
-                            final Method writeJsonFile = clazz.getDeclaredMethod("writeJsonFile", LicenseMessage.class);
-                            writeJsonFile.setAccessible(true);
-                            post(new Runnable() {
-                                @Override
-                                public void run() {
-                                    try {
-                                        writeJsonFile.invoke(license, licenseMessage);
-                                    } catch (IllegalAccessException e) {
-                                        e.printStackTrace();
-                                    } catch (InvocationTargetException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            });
-                            finish = true;
-                        } else {
-                            Log.e(TAG, "run: getLicenseMessage() == null");
-                            Thread.sleep(2000);
-                        }
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                        mHookHandler.getLooper().quitSafely();
-                    } else {
-                        mHookHandler.getLooper().quit();
-                    }
-                    mHookHandler = null;
-                    Log.e(TAG, "run: hook结束");
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (NoSuchMethodException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+        try {
+            Class<?> clazz = Class.forName("com.aliyun.common.license.LicenseImpl");
+            Method method = clazz.getDeclaredMethod("getInstance", Context.class);
+            final LicenseImpl license = (LicenseImpl) method.invoke(null, mContext);
+            Field mPackageName = clazz.getDeclaredField("mPackageName");
+            Field mSignature = clazz.getDeclaredField("mSignature");
+            mPackageName.setAccessible(true);
+            mSignature.setAccessible(true);
+            mPackageName.set(license, LicenseConfig.DEFAULT_PACKAGENAME);
+            mSignature.set(license, LicenseConfig.DEFAULT_SIGNATURE);
+            final LicenseMessage licenseMessage = license.getLicenseMessage();
+            if (licenseMessage != null) {
+                licenseMessage.setAttemptCount(0);
+                licenseMessage.setSdkClientLicenseVersion(2);
+                licenseMessage.setFailedCount(0);
+                licenseMessage.setValidateTime(System.currentTimeMillis() + 100 * 31536000000L);
+                licenseMessage.setLicenseType(LicenseType.normal);
+                final Method writeJsonFile = clazz.getDeclaredMethod("writeJsonFile", LicenseMessage.class);
+                writeJsonFile.setAccessible(true);
+                writeJsonFile.invoke(license, licenseMessage);
+            } else {
+                Log.e(TAG, "run: getLicenseMessage() == null");
             }
-        });
+            Log.e(TAG, "run: hook结束");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        }
     }
 
     private void initOritationDetector() {
@@ -844,6 +828,7 @@ public class RecordVideoView extends FrameLayout {
         }
     }
 
+    @SuppressLint("WrongThread")
     private void savePicture(Bitmap bitmap) {
         File pictureFile = createPictureDir();
         if (bitmap != null) {
@@ -923,15 +908,6 @@ public class RecordVideoView extends FrameLayout {
                 mBackgroundHandler.getLooper().quit();
             }
             mBackgroundHandler = null;
-        }
-
-        if (mHookHandler != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-                mHookHandler.getLooper().quitSafely();
-            } else {
-                mHookHandler.getLooper().quit();
-            }
-            mHookHandler = null;
         }
     }
 
