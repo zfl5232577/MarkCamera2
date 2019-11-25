@@ -2,7 +2,7 @@
 界面完全模仿微信朋友圈录制视频界面，用户可以自行在界面覆盖更多操作控件，例如：闪光灯，静音拍摄等。
 添加图片视频编辑功能，可以添加水印涂鸦剪切等。
 
-修改README.md,测试Jenkins Hook
+修改README.md,测试Jenkins Hook`````
 # ScreenShots
 
 <div align:left;display:inline;>
